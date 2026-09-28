@@ -1,5 +1,6 @@
 import { SearchBar } from '@/features/search-products';
 import { AddProductButton } from '@/features/add-product';
+import { CsvMenu } from '@/features/product-csv';
 import styles from './Header.module.css';
 
 export function Header() {
@@ -11,7 +12,9 @@ export function Header() {
           <SearchBar />
         </div>
         <AddProductButton />
+        <CsvMenu />
       </div>
     </header>
   );
 }
+
