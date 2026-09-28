@@ -1,0 +1,24 @@
+.textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 9px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: inherit;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(55, 65, 81, 0.12);
+}

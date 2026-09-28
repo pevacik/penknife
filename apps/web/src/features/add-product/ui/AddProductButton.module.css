@@ -1,0 +1,9 @@
+.button {
+  flex-shrink: 0;
+}
+
+.plus {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}

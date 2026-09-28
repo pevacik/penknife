@@ -1,0 +1,23 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.state {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
