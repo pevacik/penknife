@@ -11,6 +11,8 @@ export function CsvMenu() {
   const products = useProductStore((state) => state.products);
   const addProduct = useProductStore((state) => state.addProduct);
   const updateProduct = useProductStore((state) => state.updateProduct);
+  const addImage = useProductStore((state) => state.addImage);
+  const addComment = useProductStore((state) => state.addComment);
 
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -46,15 +48,21 @@ export function CsvMenu() {
           tags: row.tags,
         };
 
-        const exists = row.id
-          ? useProductStore.getState().products.some((product) => product.id === row.id)
-          : false;
+        const existing = row.id
+          ? useProductStore.getState().products.find((product) => product.id === row.id)
+          : undefined;
 
-        if (exists) {
+        if (existing) {
           await updateProduct(row.id, payload);
           updated += 1;
         } else {
-          await addProduct(payload);
+          const createdProduct = await addProduct(payload);
+          for (const url of row.images) {
+            await addImage(createdProduct.id, { url });
+          }
+          for (const comment of row.comments) {
+            await addComment(createdProduct.id, comment);
+          }
           created += 1;
         }
       }

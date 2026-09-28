@@ -1,12 +1,12 @@
 function escapeCsvField(value: string): string {
-  if (/[",\n\r]/.test(value)) {
+  if (/[;"\n\r]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
 }
 
 export function serializeCsv(rows: string[][]): string {
-  return rows.map((row) => row.map(escapeCsvField).join(',')).join('\r\n');
+  return rows.map((row) => row.map(escapeCsvField).join(';')).join('\r\n');
 }
 
 export function parseCsv(text: string): string[][] {
@@ -39,7 +39,7 @@ export function parseCsv(text: string): string[][] {
 
     if (char === '"') {
       inQuotes = true;
-    } else if (char === ',') {
+    } else if (char === ';') {
       row.push(field);
       field = '';
     } else if (char === '\n' || char === '\r') {

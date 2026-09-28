@@ -14,7 +14,7 @@ interface ProductState {
   loading: boolean;
   error: string | null;
   loadProducts: () => Promise<void>;
-  addProduct: (payload?: CreateProductPayload) => Promise<void>;
+  addProduct: (payload?: CreateProductPayload) => Promise<Product>;
   updateProduct: (id: string, payload: UpdateProductPayload) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   addComment: (id: string, payload: CreateCommentPayload) => Promise<void>;
@@ -44,6 +44,7 @@ export const useProductStore = create<ProductState>((set) => ({
   addProduct: async (payload) => {
     const created = await productApi.create(payload);
     set((state) => ({ products: [...state.products, created] }));
+    return created;
   },
 
   updateProduct: async (id, payload) => {

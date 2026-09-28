@@ -10,7 +10,14 @@ const CSV_HEADER = [
   'Сделать 50',
   'Срок производства',
   'Теги',
+  'Изображения',
+  'Комментарии',
 ];
+
+export interface CsvComment {
+  title: string;
+  text: string;
+}
 
 export interface CsvProductRow {
   id: string;
@@ -20,6 +27,8 @@ export interface CsvProductRow {
   make50: boolean;
   productionCountry: ProductionCountry;
   tags: string[];
+  images: string[];
+  comments: CsvComment[];
 }
 
 function parseCountry(value: string): ProductionCountry {
@@ -28,6 +37,20 @@ function parseCountry(value: string): ProductionCountry {
     productionCountryOptions.find((option) => option.label.toLowerCase() === label)?.value ??
     'russia'
   );
+}
+
+function parseComments(value: string): CsvComment[] {
+  return value
+    .split(' | ')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const index = line.indexOf(' :: ');
+      if (index === -1) {
+        return { title: line, text: '' };
+      }
+      return { title: line.slice(0, index).trim(), text: line.slice(index + 4).trim() };
+    });
 }
 
 export function productsToCsv(products: Product[]): string {
@@ -39,6 +62,8 @@ export function productsToCsv(products: Product[]): string {
     product.make50 ? 'Да' : 'Нет',
     getProductionCountryLabel(product.productionCountry),
     product.tags.join(', '),
+    product.images.map((image) => image.url).join(' '),
+    product.comments.map((comment) => `${comment.title} :: ${comment.text}`).join(' | '),
   ]);
 
   return serializeCsv([CSV_HEADER, ...rows]);
@@ -64,6 +89,12 @@ export function csvToProducts(text: string): CsvProductRow[] {
         .split(',')
         .map((tag) => tag.trim())
         .filter(Boolean),
+      images: (row[7] ?? '')
+        .split(' ')
+        .map((url) => url.trim())
+        .filter(Boolean),
+      comments: parseComments(row[8] ?? ''),
     }));
 }
+
 
