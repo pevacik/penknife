@@ -6,6 +6,7 @@ export { filterProducts } from './lib/filterProducts';
 export type { ProductFilterCriteria } from './lib/filterProducts';
 export type {
   CountryFilter,
+  Make50Filter,
   CreateCommentPayload,
   CreateImagePayload,
   CreateProductPayload,

@@ -1,4 +1,4 @@
-import type { CountryFilter, Product } from '../model/types';
+import type { CountryFilter, Make50Filter, Product } from '../model/types';
 import { getSearchableText } from './search';
 
 export interface ProductFilterCriteria {
@@ -6,6 +6,7 @@ export interface ProductFilterCriteria {
   country: CountryFilter;
   circulation: string;
   maxBudget: string;
+  make50: Make50Filter;
 }
 
 export function filterProducts(products: Product[], criteria: ProductFilterCriteria): Product[] {
@@ -19,6 +20,10 @@ export function filterProducts(products: Product[], criteria: ProductFilterCrite
     }
 
     if (criteria.country !== 'all' && product.productionCountry !== criteria.country) {
+      return false;
+    }
+
+    if (criteria.make50 === 'yes' && !product.make50) {
       return false;
     }
 

@@ -2,6 +2,8 @@ export type ProductionCountry = 'china' | 'russia';
 
 export type CountryFilter = 'all' | ProductionCountry;
 
+export type Make50Filter = 'all' | 'yes';
+
 export interface ProductComment {
   id: string;
   title: string;

@@ -13,14 +13,17 @@ export function ProductList() {
   const country = useFilterStore((state) => state.country);
   const circulation = useFilterStore((state) => state.circulation);
   const maxBudget = useFilterStore((state) => state.maxBudget);
+  const make50 = useFilterStore((state) => state.make50);
 
   useEffect(() => {
     void loadProducts();
   }, [loadProducts]);
 
-  const filtered = filterProducts(products, { query, country, circulation, maxBudget });
+  const filtered = filterProducts(products, { query, country, circulation, maxBudget, make50 });
 
-  const hasFilters = Boolean(query.trim() || circulation || maxBudget || country !== 'all');
+  const hasFilters = Boolean(
+    query.trim() || circulation || maxBudget || country !== 'all' || make50 !== 'all',
+  );
 
   return (
     <section className={styles.section}>
