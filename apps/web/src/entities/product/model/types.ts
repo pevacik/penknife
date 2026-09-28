@@ -1,5 +1,7 @@
 export type ProductionCountry = 'china' | 'russia';
 
+export type CountryFilter = 'all' | ProductionCountry;
+
 export interface ProductComment {
   id: string;
   title: string;
@@ -15,9 +17,11 @@ export interface ProductImage {
 export interface Product {
   id: string;
   title: string;
+  price: number;
   circulation: string;
   make50: boolean;
   productionCountry: ProductionCountry;
+  tags: string[];
   comments: ProductComment[];
   images: ProductImage[];
   createdAt: string;
@@ -25,9 +29,11 @@ export interface Product {
 
 export interface CreateProductPayload {
   title?: string;
+  price?: number;
   circulation?: string;
   make50?: boolean;
   productionCountry?: ProductionCountry;
+  tags?: string[];
 }
 
 export type UpdateProductPayload = Partial<CreateProductPayload>;
@@ -40,4 +46,5 @@ export interface CreateCommentPayload {
 export interface CreateImagePayload {
   url: string;
 }
+
 

@@ -9,9 +9,11 @@ export function normalizeProduct(product: Product): Product {
   return {
     id: product.id,
     title: product.title ?? '',
+    price: product.price ?? 0,
     circulation: product.circulation ?? legacy.minOrder ?? '',
     make50: product.make50 ?? false,
     productionCountry: product.productionCountry ?? 'russia',
+    tags: product.tags ?? [],
     comments: product.comments ?? [],
     images: product.images ?? [],
     createdAt: product.createdAt ?? '',

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { getSearchableText, ProductCard, useProductStore } from '@/entities/product';
+import { filterProducts, ProductCard, useProductStore } from '@/entities/product';
+import { useFilterStore } from '@/features/product-filters';
 import { useSearchStore } from '@/features/search-products';
 import styles from './ProductList.module.css';
 
@@ -9,15 +10,17 @@ export function ProductList() {
   const error = useProductStore((state) => state.error);
   const loadProducts = useProductStore((state) => state.loadProducts);
   const query = useSearchStore((state) => state.query);
+  const country = useFilterStore((state) => state.country);
+  const circulation = useFilterStore((state) => state.circulation);
+  const maxBudget = useFilterStore((state) => state.maxBudget);
 
   useEffect(() => {
     void loadProducts();
   }, [loadProducts]);
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const filtered = normalizedQuery
-    ? products.filter((product) => getSearchableText(product).includes(normalizedQuery))
-    : products;
+  const filtered = filterProducts(products, { query, country, circulation, maxBudget });
+
+  const hasFilters = Boolean(query.trim() || circulation || maxBudget || country !== 'all');
 
   return (
     <section className={styles.section}>
@@ -29,7 +32,7 @@ export function ProductList() {
         <div className={styles.state}>Ошибка: {error}</div>
       ) : filtered.length === 0 ? (
         <div className={styles.state}>
-          {query ? 'Ничего не найдено.' : 'Карточек пока нет. Добавьте первую.'}
+          {hasFilters ? 'Ничего не найдено.' : 'Карточек пока нет. Добавьте первую.'}
         </div>
       ) : (
         <div className={styles.grid}>
@@ -41,4 +44,5 @@ export function ProductList() {
     </section>
   );
 }
+
 

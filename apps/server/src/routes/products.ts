@@ -20,6 +20,17 @@ function asBoolean(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined;
 }
 
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function asStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
 productsRouter.get('/', async (_req, res, next) => {
   try {
     const products = await readProducts();
@@ -34,9 +45,11 @@ productsRouter.post('/', async (req, res, next) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const product = await createProduct({
       title: asString(body.title),
+      price: asNumber(body.price),
       circulation: asString(body.circulation),
       make50: asBoolean(body.make50),
       productionCountry: body.productionCountry === 'china' ? 'china' : 'russia',
+      tags: asStringArray(body.tags),
     });
     res.status(201).json(product);
   } catch (err) {
@@ -49,12 +62,14 @@ productsRouter.patch('/:id', async (req, res, next) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const updated = await updateProduct(req.params.id, {
       title: asString(body.title),
+      price: asNumber(body.price),
       circulation: asString(body.circulation),
       make50: asBoolean(body.make50),
       productionCountry:
         body.productionCountry === 'china' || body.productionCountry === 'russia'
           ? body.productionCountry
           : undefined,
+      tags: asStringArray(body.tags),
     });
 
     if (!updated) {

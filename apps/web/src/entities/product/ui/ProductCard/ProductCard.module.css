@@ -44,9 +44,10 @@
   color: var(--color-text);
 }
 
-.date {
-  font-size: 12px;
-  color: var(--color-text-muted);
+.price {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 

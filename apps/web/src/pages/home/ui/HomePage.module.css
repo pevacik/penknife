@@ -4,10 +4,17 @@
   min-height: 100%;
 }
 
-.main {
-  flex: 1;
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
 }

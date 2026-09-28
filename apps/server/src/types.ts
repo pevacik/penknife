@@ -15,9 +15,11 @@ export interface ProductImage {
 export interface Product {
   id: string;
   title: string;
+  price: number;
   circulation: string;
   make50: boolean;
   productionCountry: ProductionCountry;
+  tags: string[];
   comments: ProductComment[];
   images: ProductImage[];
   createdAt: string;
@@ -25,7 +27,7 @@ export interface Product {
 
 export type ProductEditableFields = Pick<
   Product,
-  'title' | 'circulation' | 'make50' | 'productionCountry'
+  'title' | 'price' | 'circulation' | 'make50' | 'productionCountry' | 'tags'
 >;
 
 export type UpdateProductPayload = Partial<ProductEditableFields>;

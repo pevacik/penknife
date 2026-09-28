@@ -16,12 +16,13 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
       <div className={styles.body}>
         <h3 className={styles.title}>{product.title}</h3>
-        <span className={styles.date}>
-          {new Date(product.createdAt).toLocaleDateString('ru-RU')}
+        <span className={styles.price}>
+          {product.price > 0 ? `${product.price.toLocaleString('ru-RU')} ₽` : '—'}
         </span>
       </div>
     </Link>
   );
 }
+
 
 

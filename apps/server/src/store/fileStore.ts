@@ -22,6 +22,41 @@ function sanitizeDigits(value: string | undefined): string {
   return value ? value.replace(/\D/g, '') : '';
 }
 
+function sanitizePrice(value: unknown): number {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
+}
+
+function sanitizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((tag): tag is string => typeof tag === 'string')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+type LegacyProduct = Product & {
+  minOrder?: string;
+};
+
+function normalizeProduct(raw: Product): Product {
+  const legacy = raw as LegacyProduct;
+  return {
+    id: raw.id,
+    title: raw.title ?? DEFAULT_TITLE,
+    price: raw.price ?? 0,
+    circulation: raw.circulation ?? legacy.minOrder ?? '',
+    make50: raw.make50 ?? false,
+    productionCountry: raw.productionCountry === 'china' ? 'china' : 'russia',
+    tags: raw.tags ?? [],
+    comments: raw.comments ?? [],
+    images: raw.images ?? [],
+    createdAt: raw.createdAt ?? '',
+  };
+}
+
 async function ensureFile(): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true });
   try {
@@ -34,7 +69,7 @@ async function ensureFile(): Promise<void> {
 export async function readProducts(): Promise<Product[]> {
   await ensureFile();
   const raw = await fs.readFile(DATA_FILE, 'utf8');
-  return JSON.parse(raw) as Product[];
+  return (JSON.parse(raw) as Product[]).map(normalizeProduct);
 }
 
 export async function writeProducts(products: Product[]): Promise<void> {
@@ -46,9 +81,11 @@ export async function createProduct(payload: Partial<ProductEditableFields> = {}
   const product: Product = {
     id: randomUUID(),
     title: payload.title ? payload.title.trim() : DEFAULT_TITLE,
+    price: sanitizePrice(payload.price),
     circulation: sanitizeDigits(payload.circulation),
     make50: payload.make50 === true,
     productionCountry: payload.productionCountry === 'china' ? 'china' : 'russia',
+    tags: sanitizeTags(payload.tags),
     comments: [],
     images: [],
     createdAt: new Date().toISOString(),
@@ -75,6 +112,7 @@ export async function updateProduct(
   const updated: Product = {
     ...current,
     title: patch.title !== undefined ? patch.title.trim() || DEFAULT_TITLE : current.title,
+    price: patch.price !== undefined ? sanitizePrice(patch.price) : current.price,
     circulation:
       patch.circulation !== undefined ? sanitizeDigits(patch.circulation) : current.circulation,
     make50: patch.make50 !== undefined ? patch.make50 === true : current.make50,
@@ -82,6 +120,7 @@ export async function updateProduct(
       patch.productionCountry === 'china' || patch.productionCountry === 'russia'
         ? patch.productionCountry
         : current.productionCountry,
+    tags: patch.tags !== undefined ? sanitizeTags(patch.tags) : current.tags,
   };
 
   products[index] = updated;
