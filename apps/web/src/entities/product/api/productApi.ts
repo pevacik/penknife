@@ -1,5 +1,11 @@
 import { httpClient } from '@/shared/api/httpClient';
-import type { CreateProductPayload, Product, UpdateProductPayload } from '../model/types';
+import type {
+  CreateCommentPayload,
+  CreateImagePayload,
+  CreateProductPayload,
+  Product,
+  UpdateProductPayload,
+} from '../model/types';
 
 export const productApi = {
   list(): Promise<Product[]> {
@@ -17,5 +23,22 @@ export const productApi = {
   remove(id: string): Promise<void> {
     return httpClient.delete<void>(`/products/${id}`);
   },
+
+  addComment(id: string, payload: CreateCommentPayload): Promise<Product> {
+    return httpClient.post<Product>(`/products/${id}/comments`, payload);
+  },
+
+  deleteComment(id: string, commentId: string): Promise<Product> {
+    return httpClient.delete<Product>(`/products/${id}/comments/${commentId}`);
+  },
+
+  addImage(id: string, payload: CreateImagePayload): Promise<Product> {
+    return httpClient.post<Product>(`/products/${id}/images`, payload);
+  },
+
+  deleteImage(id: string, imageId: string): Promise<Product> {
+    return httpClient.delete<Product>(`/products/${id}/images/${imageId}`);
+  },
 };
+
 

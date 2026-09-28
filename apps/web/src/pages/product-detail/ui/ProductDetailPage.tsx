@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useProductStore } from '@/entities/product';
 import { DeleteProductButton } from '@/features/delete-product';
 import { ProductForm } from '@/features/edit-product';
+import { CommentSection } from '@/features/product-comments';
+import { ImageSection } from '@/features/product-images';
 import styles from './ProductDetailPage.module.css';
 
 export function ProductDetailPage() {
@@ -48,9 +50,11 @@ export function ProductDetailPage() {
           ← К списку карточек
         </Link>
 
-        <h1 className={styles.heading}>{product.title}</h1>
+        <ImageSection key={`images-${product.id}`} product={product} />
 
-        <ProductForm key={product.id} product={product} />
+        <ProductForm key={`form-${product.id}`} product={product} />
+
+        <CommentSection product={product} />
 
         <div className={styles.danger}>
           <DeleteProductButton productId={product.id} onDeleted={() => navigate('/')} />
@@ -59,3 +63,4 @@ export function ProductDetailPage() {
     </div>
   );
 }
+

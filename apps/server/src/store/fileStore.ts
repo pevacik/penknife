@@ -1,7 +1,13 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { Product, ProductEditableFields, UpdateProductPayload } from '../types';
+import type {
+  CreateCommentPayload,
+  CreateImagePayload,
+  Product,
+  ProductEditableFields,
+  UpdateProductPayload,
+} from '../types';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'products.json');
@@ -10,6 +16,10 @@ const DEFAULT_TITLE = 'Новая карточка';
 
 function sanitizeText(value: string | undefined): string {
   return value ? value.trim() : '';
+}
+
+function sanitizeDigits(value: string | undefined): string {
+  return value ? value.replace(/\D/g, '') : '';
 }
 
 async function ensureFile(): Promise<void> {
@@ -36,9 +46,11 @@ export async function createProduct(payload: Partial<ProductEditableFields> = {}
   const product: Product = {
     id: randomUUID(),
     title: payload.title ? payload.title.trim() : DEFAULT_TITLE,
-    minOrder: sanitizeText(payload.minOrder),
-    productionTime: sanitizeText(payload.productionTime),
-    description: sanitizeText(payload.description),
+    circulation: sanitizeDigits(payload.circulation),
+    make50: payload.make50 === true,
+    productionCountry: payload.productionCountry === 'china' ? 'china' : 'russia',
+    comments: [],
+    images: [],
     createdAt: new Date().toISOString(),
   };
 
@@ -63,11 +75,13 @@ export async function updateProduct(
   const updated: Product = {
     ...current,
     title: patch.title !== undefined ? patch.title.trim() || DEFAULT_TITLE : current.title,
-    minOrder: patch.minOrder !== undefined ? sanitizeText(patch.minOrder) : current.minOrder,
-    productionTime:
-      patch.productionTime !== undefined ? sanitizeText(patch.productionTime) : current.productionTime,
-    description:
-      patch.description !== undefined ? sanitizeText(patch.description) : current.description,
+    circulation:
+      patch.circulation !== undefined ? sanitizeDigits(patch.circulation) : current.circulation,
+    make50: patch.make50 !== undefined ? patch.make50 === true : current.make50,
+    productionCountry:
+      patch.productionCountry === 'china' || patch.productionCountry === 'russia'
+        ? patch.productionCountry
+        : current.productionCountry,
   };
 
   products[index] = updated;
@@ -86,4 +100,70 @@ export async function deleteProduct(id: string): Promise<boolean> {
 
   await writeProducts(next);
   return true;
+}
+
+export async function addComment(id: string, payload: CreateCommentPayload): Promise<Product | null> {
+  const products = await readProducts();
+  const product = products.find((item) => item.id === id);
+  if (!product) {
+    return null;
+  }
+
+  product.comments = [
+    ...(product.comments ?? []),
+    {
+      id: randomUUID(),
+      title: payload.title.trim(),
+      text: sanitizeText(payload.text),
+      createdAt: new Date().toISOString(),
+    },
+  ];
+
+  await writeProducts(products);
+  return product;
+}
+
+export async function deleteComment(id: string, commentId: string): Promise<Product | null> {
+  const products = await readProducts();
+  const product = products.find((item) => item.id === id);
+  if (!product) {
+    return null;
+  }
+
+  product.comments = (product.comments ?? []).filter((comment) => comment.id !== commentId);
+
+  await writeProducts(products);
+  return product;
+}
+
+export async function addImage(id: string, payload: CreateImagePayload): Promise<Product | null> {
+  const products = await readProducts();
+  const product = products.find((item) => item.id === id);
+  if (!product) {
+    return null;
+  }
+
+  product.images = [
+    ...(product.images ?? []),
+    {
+      id: randomUUID(),
+      url: payload.url.trim(),
+    },
+  ];
+
+  await writeProducts(products);
+  return product;
+}
+
+export async function deleteImage(id: string, imageId: string): Promise<Product | null> {
+  const products = await readProducts();
+  const product = products.find((item) => item.id === id);
+  if (!product) {
+    return null;
+  }
+
+  product.images = (product.images ?? []).filter((image) => image.id !== imageId);
+
+  await writeProducts(products);
+  return product;
 }

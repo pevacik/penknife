@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { productApi } from '../api/productApi';
 import { normalizeProduct } from '../lib/normalize';
-import type { CreateProductPayload, Product, UpdateProductPayload } from './types';
+import type {
+  CreateCommentPayload,
+  CreateImagePayload,
+  CreateProductPayload,
+  Product,
+  UpdateProductPayload,
+} from './types';
 
 interface ProductState {
   products: Product[];
@@ -11,6 +17,10 @@ interface ProductState {
   addProduct: (payload?: CreateProductPayload) => Promise<void>;
   updateProduct: (id: string, payload: UpdateProductPayload) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  addComment: (id: string, payload: CreateCommentPayload) => Promise<void>;
+  deleteComment: (id: string, commentId: string) => Promise<void>;
+  addImage: (id: string, payload: CreateImagePayload) => Promise<void>;
+  deleteImage: (id: string, imageId: string) => Promise<void>;
 }
 
 export const useProductStore = create<ProductState>((set) => ({
@@ -47,6 +57,35 @@ export const useProductStore = create<ProductState>((set) => ({
     await productApi.remove(id);
     set((state) => ({ products: state.products.filter((product) => product.id !== id) }));
   },
+
+  addComment: async (id, payload) => {
+    const updated = await productApi.addComment(id, payload);
+    set((state) => ({
+      products: state.products.map((product) => (product.id === id ? updated : product)),
+    }));
+  },
+
+  deleteComment: async (id, commentId) => {
+    const updated = await productApi.deleteComment(id, commentId);
+    set((state) => ({
+      products: state.products.map((product) => (product.id === id ? updated : product)),
+    }));
+  },
+
+  addImage: async (id, payload) => {
+    const updated = await productApi.addImage(id, payload);
+    set((state) => ({
+      products: state.products.map((product) => (product.id === id ? updated : product)),
+    }));
+  },
+
+  deleteImage: async (id, imageId) => {
+    const updated = await productApi.deleteImage(id, imageId);
+    set((state) => ({
+      products: state.products.map((product) => (product.id === id ? updated : product)),
+    }));
+  },
 }));
+
 
 

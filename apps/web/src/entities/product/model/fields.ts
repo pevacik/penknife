@@ -1,32 +1,14 @@
-export type ProductFieldKey = 'title' | 'minOrder' | 'productionTime' | 'description';
+import type { ProductionCountry } from './types';
 
-export interface ProductFieldConfig {
-  key: ProductFieldKey;
+export const productionCountryOptions: ReadonlyArray<{
+  value: ProductionCountry;
   label: string;
-  placeholder: string;
-  multiline?: boolean;
+}> = [
+  { value: 'russia', label: 'Россия' },
+  { value: 'china', label: 'Китай' },
+];
+
+export function getProductionCountryLabel(value: ProductionCountry): string {
+  return productionCountryOptions.find((option) => option.value === value)?.label ?? value;
 }
 
-export const productFields: ProductFieldConfig[] = [
-  {
-    key: 'title',
-    label: 'Название изделия',
-    placeholder: 'Например: Складной нож',
-  },
-  {
-    key: 'minOrder',
-    label: 'Минимальный тираж',
-    placeholder: 'Например: 100 шт.',
-  },
-  {
-    key: 'productionTime',
-    label: 'Срок производства',
-    placeholder: 'Например: 2 недели',
-  },
-  {
-    key: 'description',
-    label: 'Описание',
-    placeholder: 'Краткое описание изделия',
-    multiline: true,
-  },
-];

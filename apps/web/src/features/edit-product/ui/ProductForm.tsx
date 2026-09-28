@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { productFields, useProductStore } from '@/entities/product';
-import type { Product, ProductFieldKey } from '@/entities/product';
+import { productionCountryOptions, useProductStore } from '@/entities/product';
+import type { Product, ProductionCountry } from '@/entities/product';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
-import { Textarea } from '@/shared/ui/Textarea';
 import styles from './ProductForm.module.css';
 
-type FormValues = Record<ProductFieldKey, string>;
+interface FormValues {
+  title: string;
+  circulation: string;
+  make50: boolean;
+  productionCountry: ProductionCountry;
+}
 
 interface ProductFormProps {
   product: Product;
@@ -18,17 +22,17 @@ export function ProductForm({ product }: ProductFormProps) {
 
   const [values, setValues] = useState<FormValues>({
     title: product.title,
-    minOrder: product.minOrder,
-    productionTime: product.productionTime,
-    description: product.description,
+    circulation: product.circulation,
+    make50: product.make50,
+    productionCountry: product.productionCountry,
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleChange = (key: ProductFieldKey, value: string) => {
+  function setField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }) as FormValues);
     setSaved(false);
-  };
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,24 +49,53 @@ export function ProductForm({ product }: ProductFormProps) {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      {productFields.map((field) => (
-        <label key={field.key} className={styles.field}>
-          <span className={styles.label}>{field.label}</span>
-          {field.multiline ? (
-            <Textarea
-              value={values[field.key]}
-              placeholder={field.placeholder}
-              onChange={(event) => handleChange(field.key, event.target.value)}
-            />
-          ) : (
-            <Input
-              value={values[field.key]}
-              placeholder={field.placeholder}
-              onChange={(event) => handleChange(field.key, event.target.value)}
-            />
-          )}
-        </label>
-      ))}
+      <label className={styles.field}>
+        <span className={styles.label}>Название изделия</span>
+        <Input
+          value={values.title}
+          placeholder="Например: Складной нож"
+          onChange={(event) => setField('title', event.target.value)}
+        />
+      </label>
+
+      <label className={styles.field}>
+        <span className={styles.label}>Тираж</span>
+        <Input
+          value={values.circulation}
+          placeholder="Любое количество"
+          inputMode="numeric"
+          onChange={(event) => setField('circulation', event.target.value.replace(/\D/g, ''))}
+        />
+      </label>
+
+      <label className={styles.field}>
+        <span className={styles.label}>Сделать 50</span>
+        <select
+          className={styles.select}
+          value={values.make50 ? 'yes' : 'no'}
+          onChange={(event) => setField('make50', event.target.value === 'yes')}
+        >
+          <option value="no">Нет</option>
+          <option value="yes">Да</option>
+        </select>
+      </label>
+
+      <label className={styles.field}>
+        <span className={styles.label}>Срок производства</span>
+        <select
+          className={styles.select}
+          value={values.productionCountry}
+          onChange={(event) =>
+            setField('productionCountry', event.target.value as ProductionCountry)
+          }
+        >
+          {productionCountryOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <div className={styles.actions}>
         <Button type="submit" disabled={saving}>
@@ -73,3 +106,4 @@ export function ProductForm({ product }: ProductFormProps) {
     </form>
   );
 }
+

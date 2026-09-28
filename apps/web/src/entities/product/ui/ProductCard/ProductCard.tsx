@@ -7,9 +7,13 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const cover = product.images[0]?.url;
+
   return (
     <Link to={`/products/${product.id}`} className={styles.card}>
-      <div className={styles.image} aria-hidden="true" />
+      <div className={styles.image}>
+        {cover ? <img className={styles.img} src={cover} alt="" /> : null}
+      </div>
       <div className={styles.body}>
         <h3 className={styles.title}>{product.title}</h3>
         <span className={styles.date}>
@@ -19,4 +23,5 @@ export function ProductCard({ product }: ProductCardProps) {
     </Link>
   );
 }
+
 

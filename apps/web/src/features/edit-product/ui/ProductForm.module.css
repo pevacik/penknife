@@ -16,6 +16,25 @@
   color: var(--color-text-muted);
 }
 
+.select {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: inherit;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(55, 65, 81, 0.12);
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -26,3 +45,4 @@
   font-size: 13px;
   color: #15803d;
 }
+

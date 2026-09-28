@@ -5,8 +5,9 @@ node_modules/
 dist/
 build/
 
-# local server data (persistent JSON store)
+# local server data (persistent JSON store + uploaded files)
 apps/server/data/
+apps/server/uploads/
 
 # logs
 *.log
