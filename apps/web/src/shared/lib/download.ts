@@ -2,8 +2,11 @@ export function downloadTextFile(
   filename: string,
   content: string,
   mimeType = 'text/csv',
+  withBom = true,
 ): void {
-  const blob = new Blob([`\uFEFF${content}`], { type: `${mimeType};charset=utf-8` });
+  const blob = new Blob([withBom ? `\uFEFF${content}` : content], {
+    type: `${mimeType};charset=utf-8`,
+  });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;

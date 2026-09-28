@@ -2,6 +2,7 @@ import { productionCountryOptions } from "@/entities/product";
 import type { CountryFilter, Make50Filter } from "@/entities/product";
 import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
+import { DownloadListButton } from "@/features/product-selection";
 import { useFilterStore } from "../model/store";
 import styles from "./FilterSidebar.module.css";
 
@@ -68,6 +69,10 @@ export function FilterSidebar() {
           <option value="yes">Да</option>
         </Select>
       </label>
+
+      <div className={styles.download}>
+        <DownloadListButton />
+      </div>
     </aside>
   );
 }

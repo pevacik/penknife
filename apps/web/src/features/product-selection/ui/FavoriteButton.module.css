@@ -1,0 +1,23 @@
+.heart {
+  flex-shrink: 0;
+  padding: 2px 4px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.heart:hover {
+  color: var(--color-text);
+}
+
+.heartSelected {
+  color: #dc2626;
+}
+
+.heartSelected:hover {
+  color: #dc2626;
+}

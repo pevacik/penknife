@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type { Product } from '../../model/types';
 import styles from './ProductCard.module.css';
 
 interface ProductCardProps {
   product: Product;
+  action?: ReactNode;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, action }: ProductCardProps) {
   const cover = product.images[0]?.url;
 
   return (
@@ -16,13 +18,17 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
       <div className={styles.body}>
         <h3 className={styles.title}>{product.title}</h3>
-        <span className={styles.price}>
-          {product.price > 0 ? `${product.price.toLocaleString('ru-RU')} ₽` : '—'}
-        </span>
+        <div className={styles.priceRow}>
+          <span className={styles.price}>
+            {product.price > 0 ? `${product.price.toLocaleString('ru-RU')} ₽` : '—'}
+          </span>
+          {action}
+        </div>
       </div>
     </Link>
   );
 }
+
 
 
 

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { filterProducts, ProductCard, useProductStore } from '@/entities/product';
 import { useFilterStore } from '@/features/product-filters';
 import { useSearchStore } from '@/features/search-products';
+import { FavoriteButton } from '@/features/product-selection';
 import styles from './ProductList.module.css';
 
 export function ProductList() {
@@ -40,7 +41,11 @@ export function ProductList() {
       ) : (
         <div className={styles.grid}>
           {filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              action={<FavoriteButton productId={product.id} />}
+            />
           ))}
         </div>
       )}
