@@ -19,6 +19,7 @@ interface ProductState {
   deleteProduct: (id: string) => Promise<void>;
   addComment: (id: string, payload: CreateCommentPayload) => Promise<void>;
   deleteComment: (id: string, commentId: string) => Promise<void>;
+  deleteCommentImage: (id: string, commentId: string, imageId: string) => Promise<void>;
   addImage: (id: string, payload: CreateImagePayload) => Promise<void>;
   deleteImage: (id: string, imageId: string) => Promise<void>;
 }
@@ -68,6 +69,13 @@ export const useProductStore = create<ProductState>((set) => ({
 
   deleteComment: async (id, commentId) => {
     const updated = await productApi.deleteComment(id, commentId);
+    set((state) => ({
+      products: state.products.map((product) => (product.id === id ? updated : product)),
+    }));
+  },
+
+  deleteCommentImage: async (id, commentId, imageId) => {
+    const updated = await productApi.deleteCommentImage(id, commentId, imageId);
     set((state) => ({
       products: state.products.map((product) => (product.id === id ? updated : product)),
     }));

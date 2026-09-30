@@ -17,6 +17,7 @@ const CSV_HEADER = [
 export interface CsvComment {
   title: string;
   text: string;
+  images: string[];
 }
 
 export interface CsvProductRow {
@@ -45,11 +46,27 @@ function parseComments(value: string): CsvComment[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const index = line.indexOf(' :: ');
-      if (index === -1) {
-        return { title: line, text: '' };
+      const firstSeparator = line.indexOf(' :: ');
+      if (firstSeparator === -1) {
+        return { title: line, text: '', images: [] };
       }
-      return { title: line.slice(0, index).trim(), text: line.slice(index + 4).trim() };
+
+      const title = line.slice(0, firstSeparator).trim();
+      const rest = line.slice(firstSeparator + 4);
+
+      const secondSeparator = rest.indexOf(' :: ');
+      if (secondSeparator === -1) {
+        return { title, text: rest.trim(), images: [] };
+      }
+
+      const text = rest.slice(0, secondSeparator).trim();
+      const images = rest
+        .slice(secondSeparator + 4)
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+      return { title, text, images };
     });
 }
 
@@ -63,7 +80,14 @@ export function productsToCsv(products: Product[]): string {
     getProductionCountryLabel(product.productionCountry),
     product.tags.join(', '),
     product.images.map((image) => image.url).join(' '),
-    product.comments.map((comment) => `${comment.title} :: ${comment.text}`).join(' | '),
+    product.comments
+      .map((comment) => {
+        const images = (comment.images ?? []).map((image) => image.url).join(' ');
+        return images
+          ? `${comment.title} :: ${comment.text} :: ${images}`
+          : `${comment.title} :: ${comment.text}`;
+      })
+      .join(' | '),
   ]);
 
   return serializeCsv([CSV_HEADER, ...rows]);

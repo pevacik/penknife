@@ -32,6 +32,10 @@ export const productApi = {
     return httpClient.delete<Product>(`/products/${id}/comments/${commentId}`);
   },
 
+  deleteCommentImage(id: string, commentId: string, imageId: string): Promise<Product> {
+    return httpClient.delete<Product>(`/products/${id}/comments/${commentId}/images/${imageId}`);
+  },
+
   addImage(id: string, payload: CreateImagePayload): Promise<Product> {
     return httpClient.post<Product>(`/products/${id}/images`, payload);
   },

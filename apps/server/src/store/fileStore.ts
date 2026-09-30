@@ -5,6 +5,7 @@ import type {
   CreateCommentPayload,
   CreateImagePayload,
   Product,
+  ProductComment,
   ProductEditableFields,
   UpdateProductPayload,
 } from '../types';
@@ -37,6 +38,16 @@ function sanitizeTags(value: unknown): string[] {
     .filter(Boolean);
 }
 
+function normalizeComment(raw: ProductComment): ProductComment {
+  return {
+    id: raw.id,
+    title: raw.title ?? '',
+    text: raw.text ?? '',
+    images: raw.images ?? [],
+    createdAt: raw.createdAt ?? '',
+  };
+}
+
 type LegacyProduct = Product & {
   minOrder?: string;
 };
@@ -51,7 +62,7 @@ function normalizeProduct(raw: Product): Product {
     make50: raw.make50 ?? false,
     productionCountry: raw.productionCountry === 'china' ? 'china' : 'russia',
     tags: raw.tags ?? [],
-    comments: raw.comments ?? [],
+    comments: (raw.comments ?? []).map(normalizeComment),
     images: raw.images ?? [],
     createdAt: raw.createdAt ?? '',
   };
@@ -154,6 +165,9 @@ export async function addComment(id: string, payload: CreateCommentPayload): Pro
       id: randomUUID(),
       title: payload.title.trim(),
       text: sanitizeText(payload.text),
+      images: (payload.images ?? [])
+        .filter((url): url is string => typeof url === 'string' && url.trim().length > 0)
+        .map((url) => ({ id: randomUUID(), url: url.trim() })),
       createdAt: new Date().toISOString(),
     },
   ];
@@ -170,6 +184,28 @@ export async function deleteComment(id: string, commentId: string): Promise<Prod
   }
 
   product.comments = (product.comments ?? []).filter((comment) => comment.id !== commentId);
+
+  await writeProducts(products);
+  return product;
+}
+
+export async function deleteCommentImage(
+  id: string,
+  commentId: string,
+  imageId: string,
+): Promise<Product | null> {
+  const products = await readProducts();
+  const product = products.find((item) => item.id === id);
+  if (!product) {
+    return null;
+  }
+
+  const comment = (product.comments ?? []).find((item) => item.id === commentId);
+  if (!comment) {
+    return null;
+  }
+
+  comment.images = (comment.images ?? []).filter((image) => image.id !== imageId);
 
   await writeProducts(products);
   return product;

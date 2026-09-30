@@ -4,6 +4,7 @@ import {
   addImage,
   createProduct,
   deleteComment,
+  deleteCommentImage,
   deleteImage,
   deleteProduct,
   readProducts,
@@ -111,6 +112,7 @@ productsRouter.post('/:id/comments', async (req, res, next) => {
     const updated = await addComment(req.params.id, {
       title,
       text: asString(body.text) ?? '',
+      images: asStringArray(body.images),
     });
 
     if (!updated) {
@@ -127,6 +129,25 @@ productsRouter.post('/:id/comments', async (req, res, next) => {
 productsRouter.delete('/:id/comments/:commentId', async (req, res, next) => {
   try {
     const updated = await deleteComment(req.params.id, req.params.commentId);
+
+    if (!updated) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+productsRouter.delete('/:id/comments/:commentId/images/:imageId', async (req, res, next) => {
+  try {
+    const updated = await deleteCommentImage(
+      req.params.id,
+      req.params.commentId,
+      req.params.imageId,
+    );
 
     if (!updated) {
       res.status(404).json({ message: 'Not found' });

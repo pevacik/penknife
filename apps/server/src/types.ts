@@ -4,6 +4,7 @@ export interface ProductComment {
   id: string;
   title: string;
   text: string;
+  images: ProductImage[];
   createdAt: string;
 }
 
@@ -35,6 +36,7 @@ export type UpdateProductPayload = Partial<ProductEditableFields>;
 export interface CreateCommentPayload {
   title: string;
   text: string;
+  images?: string[];
 }
 
 export interface CreateImagePayload {

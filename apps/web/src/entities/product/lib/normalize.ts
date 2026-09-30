@@ -14,7 +14,10 @@ export function normalizeProduct(product: Product): Product {
     make50: product.make50 ?? false,
     productionCountry: product.productionCountry ?? 'russia',
     tags: product.tags ?? [],
-    comments: product.comments ?? [],
+    comments: (product.comments ?? []).map((comment) => ({
+      ...comment,
+      images: comment.images ?? [],
+    })),
     images: product.images ?? [],
     createdAt: product.createdAt ?? '',
   };
