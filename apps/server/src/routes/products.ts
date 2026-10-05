@@ -9,7 +9,7 @@ import {
   deleteProduct,
   readProducts,
   updateProduct,
-} from '../store/fileStore';
+} from '../store/prismaStore';
 
 export const productsRouter = Router();
 

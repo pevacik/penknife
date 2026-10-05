@@ -5,7 +5,7 @@
 ## Стек
 
 - **Frontend**: Vite + React + TypeScript, архитектура [Feature-Sliced Design](https://feature-sliced.design/).
-- **Backend**: локальный Express-сервер (позже заменится на удалённый) с хранением в JSON-файле.
+- **Backend**: Express-сервер + PostgreSQL (через Prisma ORM).
 
 ## Структура
 
@@ -17,8 +17,25 @@ apps/
 
 ## Запуск
 
+1. Установить зависимости и поднять базу данных (нужен Docker):
+
 ```bash
 npm install
+docker compose up -d
+```
+
+2. Подготовить схему БД (первый раз) и при необходимости импортировать старые данные:
+
+```bash
+cd apps/server
+npx prisma generate
+npx prisma db push
+npm run db:import   # необязательно: перенос данных из data/products.json
+```
+
+3. Запустить приложение:
+
+```bash
 npm run dev
 ```
 
@@ -26,6 +43,13 @@ npm run dev
 - Backend:  http://localhost:3001
 
 Фронт ходит на бэкенд через Vite-прокси (`/api`). Для удалённого сервера достаточно задать `VITE_API_URL`.
+
+## База данных
+
+- PostgreSQL запускается в Docker (`docker-compose.yml`), данные — в volume `penknife_pgdata`.
+- Строка подключения задаётся в `apps/server/.env` (`DATABASE_URL`); образец — `apps/server/.env.example`.
+- Схема описана в `apps/server/prisma/schema.prisma` (модели `Product`, `ProductImage`, `Comment`, `CommentImage`).
+- Загруженные изображения по-прежнему лежат на диске в `apps/server/uploads/`, в БД хранятся только URL.
 
 ## Возможности
 
@@ -60,7 +84,7 @@ npm run dev
 | POST   | `/api/uploads` (multipart)    | Загрузить файл изображения        |
 | GET    | `/api/health`                 | Проверка работоспособности        |
 
-Данные хранятся в JSON-файле `apps/server/data/products.json`, загруженные изображения — в `apps/server/uploads/` (обе папки создаются автоматически).
+Данные хранятся в PostgreSQL (Docker, БД `penknife`), загруженные изображения — в `apps/server/uploads/` (папка создаётся автоматически).
 
 ## Скрипты
 
@@ -68,3 +92,7 @@ npm run dev
 - `npm run build` — сборка фронта.
 - `npm run build:server` — сборка сервера.
 - `npm run start` — запуск собранного сервера.
+- `npm run prisma:generate --workspace server` — генерация Prisma Client.
+- `npm run db:push --workspace server` — синхронизировать таблицы со схемой.
+- `npm run prisma:migrate --workspace server` — создать/применить миграцию.
+- `npm run db:import --workspace server` — импорт данных из `data/products.json`.
