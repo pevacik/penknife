@@ -7,6 +7,8 @@ import {
   deleteCommentImage,
   deleteImage,
   deleteProduct,
+  getProductById,
+  readAllProducts,
   readProducts,
   updateProduct,
 } from '../store/prismaStore';
@@ -32,10 +34,56 @@ function asStringArray(value: unknown): string[] | undefined {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
-productsRouter.get('/', async (_req, res, next) => {
+function asPositiveInt(value: unknown, fallback: number): number {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback;
+}
+
+productsRouter.get('/', async (req, res, next) => {
   try {
-    const products = await readProducts();
+    const page = asPositiveInt(req.query.page, 1);
+    const limit = asPositiveInt(req.query.limit, 24);
+    const result = await readProducts({
+      page,
+      limit,
+      query: asString(req.query.query),
+      country:
+        req.query.country === 'china' || req.query.country === 'russia'
+          ? req.query.country
+          : 'all',
+      circulation: asString(req.query.circulation),
+      maxBudget: asString(req.query.maxBudget),
+      make50: req.query.make50 === 'yes' ? 'yes' : 'all',
+    });
+    res.json({
+      items: result.items,
+      total: result.total,
+      page,
+      limit,
+      hasMore: page * limit < result.total,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+productsRouter.get('/all', async (_req, res, next) => {
+  try {
+    const products = await readAllProducts();
     res.json(products);
+  } catch (err) {
+    next(err);
+  }
+});
+
+productsRouter.get('/:id', async (req, res, next) => {
+  try {
+    const product = await getProductById(req.params.id);
+    if (!product) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+    res.json(product);
   } catch (err) {
     next(err);
   }

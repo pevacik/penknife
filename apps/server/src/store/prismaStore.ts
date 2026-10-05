@@ -3,8 +3,11 @@ import { prisma } from '../db';
 import type {
   CreateCommentPayload,
   CreateImagePayload,
+  ListProductsQuery,
   Product,
   ProductEditableFields,
+  ProductListResult,
+  ProductionCountry,
   UpdateProductPayload,
 } from '../types';
 
@@ -46,6 +49,74 @@ function isNotFound(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
 }
 
+interface LightProduct {
+  id: string;
+  title: string;
+  price: number;
+  circulation: string;
+  make50: boolean;
+  productionCountry: string;
+  tags: string[];
+  comments: Array<{ title: string; text: string }>;
+}
+
+const COUNTRY_LABEL: Record<ProductionCountry, string> = {
+  russia: 'Россия',
+  china: 'Китай',
+};
+
+function getSearchableText(product: LightProduct): string {
+  const commentsText = product.comments
+    .map((comment) => `${comment.title} ${comment.text}`)
+    .join(' ');
+  const tagsText = product.tags.join(' ');
+
+  return [
+    product.title,
+    product.circulation,
+    COUNTRY_LABEL[product.productionCountry as ProductionCountry] ?? product.productionCountry,
+    tagsText,
+    commentsText,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function matchesFilters(product: LightProduct, query: ListProductsQuery): boolean {
+  const search = (query.query ?? '').trim().toLowerCase();
+  if (search && !getSearchableText(product).includes(search)) {
+    return false;
+  }
+
+  if (query.country === 'china' || query.country === 'russia') {
+    if (product.productionCountry !== query.country) {
+      return false;
+    }
+  }
+
+  if (query.make50 === 'yes' && !product.make50) {
+    return false;
+  }
+
+  const circulationLimit = Number.parseInt(query.circulation ?? '', 10);
+  if (!Number.isNaN(circulationLimit)) {
+    const circulation = Number.parseInt(product.circulation, 10) || 0;
+    if (circulation > circulationLimit) {
+      return false;
+    }
+  }
+
+  const maxBudget = Number.parseInt(query.maxBudget ?? '', 10);
+  if (!Number.isNaN(maxBudget)) {
+    if (product.price <= 0 || product.price > maxBudget) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function serializeProduct(product: ProductWithRelations): Product {
   return {
     id: product.id,
@@ -75,12 +146,47 @@ async function fetchProduct(id: string): Promise<Product | null> {
   return product ? serializeProduct(product) : null;
 }
 
-export async function readProducts(): Promise<Product[]> {
+export async function readProducts(query: ListProductsQuery = {}): Promise<ProductListResult> {
+  const page = Math.max(1, Math.floor(query.page ?? 1));
+  const limit = Math.max(1, Math.min(100, Math.floor(query.limit ?? 24)));
+
+  const rows = await prisma.product.findMany({
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      circulation: true,
+      make50: true,
+      productionCountry: true,
+      tags: true,
+      comments: { select: { title: true, text: true } },
+    },
+  });
+
+  const filtered = rows.filter((row) => matchesFilters(row, query));
+  const sorted = filtered.sort((a, b) => b.price - a.price);
+  const total = sorted.length;
+  const pageIds = sorted.slice((page - 1) * limit, page * limit).map((row) => row.id);
+
+  const items = await prisma.product.findMany({
+    ...productWithRelations,
+    where: { id: { in: pageIds } },
+    orderBy: { price: 'desc' },
+  });
+
+  return { items: items.map(serializeProduct), total };
+}
+
+export async function readAllProducts(): Promise<Product[]> {
   const products = await prisma.product.findMany({
     ...productWithRelations,
     orderBy: { createdAt: 'asc' },
   });
   return products.map(serializeProduct);
+}
+
+export async function getProductById(id: string): Promise<Product | null> {
+  return fetchProduct(id);
 }
 
 export async function createProduct(payload: Partial<ProductEditableFields> = {}): Promise<Product> {

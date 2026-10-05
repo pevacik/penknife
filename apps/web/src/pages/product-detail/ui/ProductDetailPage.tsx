@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useProductStore } from '@/entities/product';
 import { DeleteProductButton } from '@/features/delete-product';
@@ -10,17 +10,25 @@ import styles from './ProductDetailPage.module.css';
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const products = useProductStore((state) => state.products);
-  const loading = useProductStore((state) => state.loading);
-  const loadProducts = useProductStore((state) => state.loadProducts);
+  const product = useProductStore((state) => (id ? state.productsById[id] : undefined));
+  const getProduct = useProductStore((state) => state.getProduct);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (products.length === 0) {
-      void loadProducts();
+    if (!id) {
+      return;
     }
-  }, [products.length, loadProducts]);
-
-  const product = products.find((item) => item.id === id);
+    let active = true;
+    setLoading(true);
+    void getProduct(id).finally(() => {
+      if (active) {
+        setLoading(false);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [id, getProduct]);
 
   if (!product) {
     return (

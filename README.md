@@ -4,7 +4,7 @@
 
 ## Стек
 
-- **Frontend**: Vite + React + TypeScript, архитектура [Feature-Sliced Design](https://feature-sliced.design/).
+- **Frontend**: Vite + React + TypeScript, архитектура [Feature-Sliced Design]
 - **Backend**: Express-сервер + PostgreSQL (через Prisma ORM).
 
 ## Структура

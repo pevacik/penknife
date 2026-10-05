@@ -51,4 +51,22 @@ export interface CreateImagePayload {
   url: string;
 }
 
+export interface ProductListParams {
+  page?: number;
+  limit?: number;
+  query?: string;
+  country?: CountryFilter;
+  circulation?: string;
+  maxBudget?: string;
+  make50?: Make50Filter;
+}
+
+export interface ProductListResponse {
+  items: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
 

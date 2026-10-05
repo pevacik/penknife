@@ -4,12 +4,36 @@ import type {
   CreateImagePayload,
   CreateProductPayload,
   Product,
+  ProductListParams,
+  ProductListResponse,
   UpdateProductPayload,
 } from '../model/types';
 
 export const productApi = {
-  list(): Promise<Product[]> {
-    return httpClient.get<Product[]>('/products');
+  list(params: ProductListParams = {}): Promise<ProductListResponse> {
+    const search = new URLSearchParams();
+    if (params.page !== undefined) search.set('page', String(params.page));
+    if (params.limit !== undefined) search.set('limit', String(params.limit));
+    if (params.query) search.set('query', params.query);
+    if (params.country && params.country !== 'all') search.set('country', params.country);
+    if (params.circulation) search.set('circulation', params.circulation);
+    if (params.maxBudget) search.set('maxBudget', params.maxBudget);
+    if (params.make50 && params.make50 !== 'all') search.set('make50', params.make50);
+    const query = search.toString();
+    return httpClient.get<ProductListResponse>(`/products${query ? `?${query}` : ''}`);
+  },
+
+  listAll(): Promise<Product[]> {
+    return httpClient.get<Product[]>('/products/all');
+  },
+
+  get(id: string): Promise<Product | null> {
+    return httpClient.get<Product>(`/products/${id}`).catch((error) => {
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    });
   },
 
   create(payload: CreateProductPayload = {}): Promise<Product> {

@@ -42,3 +42,18 @@ export interface CreateCommentPayload {
 export interface CreateImagePayload {
   url: string;
 }
+
+export interface ListProductsQuery {
+  query?: string;
+  country?: 'all' | ProductionCountry;
+  circulation?: string;
+  maxBudget?: string;
+  make50?: 'all' | 'yes';
+  page?: number;
+  limit?: number;
+}
+
+export interface ProductListResult {
+  items: Product[];
+  total: number;
+}

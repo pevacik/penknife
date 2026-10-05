@@ -2,25 +2,28 @@ import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useProductStore } from '@/entities/product';
 import type { CreateProductPayload } from '@/entities/product';
+import { productApi } from '@/entities/product/api/productApi';
 import { Button } from '@/shared/ui/Button';
 import { downloadTextFile } from '@/shared/lib/download';
 import { csvToProducts, productsToCsv } from '../model/converter';
 import styles from './CsvMenu.module.css';
 
 export function CsvMenu() {
-  const products = useProductStore((state) => state.products);
+  const total = useProductStore((state) => state.total);
   const addProduct = useProductStore((state) => state.addProduct);
   const updateProduct = useProductStore((state) => state.updateProduct);
   const addImage = useProductStore((state) => state.addImage);
   const addComment = useProductStore((state) => state.addComment);
+  const loadProducts = useProductStore((state) => state.loadProducts);
 
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleExport = () => {
-    downloadTextFile('products.csv', productsToCsv(products));
+  const handleExport = async () => {
+    const all = await productApi.listAll();
+    downloadTextFile('products.csv', productsToCsv(all));
     setOpen(false);
   };
 
@@ -48,9 +51,7 @@ export function CsvMenu() {
           tags: row.tags,
         };
 
-        const existing = row.id
-          ? useProductStore.getState().products.find((product) => product.id === row.id)
-          : undefined;
+        const existing = row.id ? await productApi.get(row.id) : null;
 
         if (existing) {
           await updateProduct(row.id, payload);
@@ -66,6 +67,8 @@ export function CsvMenu() {
           created += 1;
         }
       }
+
+      await loadProducts();
 
       setMessage(`Импортировано: создано ${created}, обновлено ${updated}`);
     } catch {
@@ -90,7 +93,7 @@ export function CsvMenu() {
             <h3 className={styles.heading}>Импорт / Экспорт CSV</h3>
 
             <div className={styles.actions}>
-              <Button onClick={handleExport} disabled={products.length === 0}>
+              <Button onClick={() => void handleExport()} disabled={total === 0}>
                 Экспортировать CSV
               </Button>
               <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
