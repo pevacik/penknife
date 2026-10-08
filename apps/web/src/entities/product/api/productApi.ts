@@ -36,6 +36,10 @@ export const productApi = {
     });
   },
 
+  exportPdf(ids: string[]): Promise<Blob> {
+    return httpClient.postBlob('/products/export-pdf', { ids });
+  },
+
   create(payload: CreateProductPayload = {}): Promise<Product> {
     return httpClient.post<Product>('/products', payload);
   },

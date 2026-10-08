@@ -3,7 +3,7 @@ import { ProductCard, useProductStore } from '@/entities/product';
 import type { ProductListParams } from '@/entities/product';
 import { useFilterStore } from '@/features/product-filters';
 import { useSearchStore } from '@/features/search-products';
-import { FavoriteButton } from '@/features/product-selection';
+import { CartToggleButton } from '@/features/cart';
 import styles from './ProductList.module.css';
 
 export function ProductList() {
@@ -75,7 +75,7 @@ export function ProductList() {
               <ProductCard
                 key={product.id}
                 product={product}
-                action={<FavoriteButton productId={product.id} />}
+                action={<CartToggleButton product={product} />}
               />
             ))}
           </div>

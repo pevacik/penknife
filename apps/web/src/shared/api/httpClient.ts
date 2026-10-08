@@ -16,6 +16,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function requestBlob(path: string, init: RequestInit = {}): Promise<Blob> {
+  const response = await fetch(`${API_URL}${path}`, init);
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
+
 export const httpClient = {
   get<T>(path: string): Promise<T> {
     return request<T>(path, { headers: JSON_HEADERS });
@@ -39,6 +49,13 @@ export const httpClient = {
   },
   upload<T>(path: string, body: FormData): Promise<T> {
     return request<T>(path, { method: 'POST', body });
+  },
+  postBlob(path: string, body?: unknown): Promise<Blob> {
+    return requestBlob(path, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
   },
 };
 

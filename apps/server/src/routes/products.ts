@@ -12,6 +12,7 @@ import {
   readProducts,
   updateProduct,
 } from '../store/prismaStore';
+import { buildListPdf } from '../pdf';
 
 export const productsRouter = Router();
 
@@ -84,6 +85,19 @@ productsRouter.get('/:id', async (req, res, next) => {
       return;
     }
     res.json(product);
+  } catch (err) {
+    next(err);
+  }
+});
+
+productsRouter.post('/export-pdf', async (req, res, next) => {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const ids = asStringArray(body.ids) ?? [];
+    const pdf = await buildListPdf(ids);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="list.pdf"');
+    res.send(pdf);
   } catch (err) {
     next(err);
   }
