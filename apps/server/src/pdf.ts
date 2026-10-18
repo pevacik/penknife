@@ -4,6 +4,11 @@ import { promises as fs } from 'node:fs';
 import { getProductById } from './store/prismaStore';
 import { UPLOADS_DIR } from './storage';
 
+const FONT_PATH = path.resolve(process.cwd(), 'assets', 'fonts', 'NotoSans-Regular.ttf');
+const FONT_SIZE = 12;
+const GAP = 16;
+const COMMENT_AREA = 64;
+
 function isSupportedImage(buffer: Buffer): boolean {
   if (buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
     return true; // JPEG
@@ -33,7 +38,7 @@ async function loadImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
-export async function buildListPdf(ids: string[]): Promise<Buffer> {
+export async function buildListPdf(items: Array<{ id: string; comment: string }>): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
 
   const chunks: Buffer[] = [];
@@ -42,26 +47,40 @@ export async function buildListPdf(ids: string[]): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
   });
 
+  doc.font(FONT_PATH);
+  doc.fontSize(FONT_SIZE);
+
   const { left, right, top, bottom } = doc.page.margins;
   const usableWidth = doc.page.width - left - right;
   const usableHeight = doc.page.height - top - bottom;
 
   let hasContent = false;
 
-  const placeImage = (buffer: Buffer) => {
+  const placeItem = (buffer: Buffer, comment: string) => {
     if (hasContent) {
       doc.addPage();
     }
+
+    const imageHeight = comment ? usableHeight - COMMENT_AREA : usableHeight;
+
     doc.image(buffer, left, top, {
-      fit: [usableWidth, usableHeight],
+      fit: [usableWidth, imageHeight],
       align: 'center',
       valign: 'center',
     });
+
+    if (comment) {
+      doc.text(comment, left, top + imageHeight + GAP, {
+        width: usableWidth,
+        align: 'left',
+      });
+    }
+
     hasContent = true;
   };
 
-  for (const id of ids) {
-    const product = await getProductById(id);
+  for (const item of items) {
+    const product = await getProductById(item.id);
     if (!product) {
       continue;
     }
@@ -73,7 +92,7 @@ export async function buildListPdf(ids: string[]): Promise<Buffer> {
     if (!buffer || !isSupportedImage(buffer)) {
       continue;
     }
-    placeImage(buffer);
+    placeItem(buffer, (item.comment ?? '').trim());
   }
 
   doc.end();

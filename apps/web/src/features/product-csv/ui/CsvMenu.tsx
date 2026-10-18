@@ -4,6 +4,7 @@ import { useProductStore } from '@/entities/product';
 import type { CreateProductPayload } from '@/entities/product';
 import { productApi } from '@/entities/product/api/productApi';
 import { Button } from '@/shared/ui/Button';
+import { Modal } from '@/shared/ui/Modal';
 import { downloadTextFile } from '@/shared/lib/download';
 import { csvToProducts, productsToCsv } from '../model/converter';
 import styles from './CsvMenu.module.css';
@@ -88,26 +89,26 @@ export function CsvMenu() {
       </Button>
 
       {open && (
-        <div className={styles.overlay} onClick={() => setOpen(false)}>
-          <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
-            <h3 className={styles.heading}>Импорт / Экспорт CSV</h3>
-
-            <div className={styles.actions}>
-              <Button onClick={() => void handleExport()} disabled={total === 0}>
-                Экспортировать CSV
-              </Button>
-              <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
-                {importing ? 'Импорт…' : 'Импортировать CSV'}
-              </Button>
-            </div>
-
-            {message && <p className={styles.message}>{message}</p>}
-
+        <Modal
+          title="Импорт / Экспорт CSV"
+          onClose={() => setOpen(false)}
+          actions={
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Закрыть
             </Button>
+          }
+        >
+          <div className={styles.actions}>
+            <Button onClick={() => void handleExport()} disabled={total === 0}>
+              Экспортировать CSV
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              {importing ? 'Импорт…' : 'Импортировать CSV'}
+            </Button>
           </div>
-        </div>
+
+          {message && <p className={styles.message}>{message}</p>}
+        </Modal>
       )}
 
       <input

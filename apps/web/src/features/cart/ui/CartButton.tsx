@@ -3,11 +3,14 @@ import { useCartStore } from '../model/store';
 import { productApi } from '@/entities/product/api/productApi';
 import { downloadBlob } from '@/shared/lib/download';
 import { Button } from '@/shared/ui/Button';
+import { Modal } from '@/shared/ui/Modal';
+import { CartIcon } from './CartIcon';
 import styles from './CartButton.module.css';
 
 export function CartButton() {
   const items = useCartStore((state) => state.items);
   const remove = useCartStore((state) => state.remove);
+  const setComment = useCartStore((state) => state.setComment);
   const clear = useCartStore((state) => state.clear);
   const [open, setOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -18,7 +21,9 @@ export function CartButton() {
     }
     setDownloading(true);
     try {
-      const blob = await productApi.exportPdf(items.map((item) => item.id));
+      const blob = await productApi.exportPdf(
+        items.map((item) => ({ id: item.id, comment: item.comment ?? '' })),
+      );
       downloadBlob(blob, 'list.pdf');
       clear();
     } catch {
@@ -36,45 +41,31 @@ export function CartButton() {
         onClick={() => setOpen(true)}
         aria-label="Открыть корзину"
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <circle cx="9" cy="21" r="1" />
-          <circle cx="20" cy="21" r="1" />
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-        </svg>
+        <CartIcon size={20} />
         {items.length > 0 && <span className={styles.badge}>{items.length}</span>}
       </button>
 
       {open && (
-        <div className={styles.overlay} onClick={() => setOpen(false)}>
-          <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.header}>
-              <h3 className={styles.heading}>Корзина</h3>
-              <button
-                type="button"
-                className={styles.close}
-                onClick={() => setOpen(false)}
-                aria-label="Закрыть"
-              >
-                ×
-              </button>
-            </div>
-
-            {items.length === 0 ? (
-              <p className={styles.empty}>Корзина пуста</p>
-            ) : (
-              <ul className={styles.list}>
-                {items.map((item) => (
-                  <li key={item.id} className={styles.item}>
+        <Modal
+          title="Корзина"
+          onClose={() => setOpen(false)}
+          actions={
+            <Button
+              className={styles.download}
+              onClick={() => void handleDownload()}
+              disabled={items.length === 0 || downloading}
+            >
+              {downloading ? 'Генерация…' : 'Скачать список'}
+            </Button>
+          }
+        >
+          {items.length === 0 ? (
+            <p className={styles.empty}>Корзина пуста</p>
+          ) : (
+            <ul className={styles.list}>
+              {items.map((item) => (
+                <li key={item.id} className={styles.item}>
+                  <div className={styles.itemRow}>
                     {item.imageUrl ? (
                       <img className={styles.thumb} src={item.imageUrl} alt="" />
                     ) : (
@@ -89,22 +80,18 @@ export function CartButton() {
                     >
                       ×
                     </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className={styles.actions}>
-              <Button
-                className={styles.download}
-                onClick={() => void handleDownload()}
-                disabled={items.length === 0 || downloading}
-              >
-                {downloading ? 'Генерация…' : 'Скачать список'}
-              </Button>
-            </div>
-          </div>
-        </div>
+                  </div>
+                  <textarea
+                    className={styles.commentInput}
+                    value={item.comment ?? ''}
+                    placeholder="Комментарий (цена, тираж, срок)"
+                    onChange={(event) => setComment(item.id, event.target.value)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal>
       )}
     </>
   );

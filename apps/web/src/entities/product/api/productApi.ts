@@ -36,8 +36,8 @@ export const productApi = {
     });
   },
 
-  exportPdf(ids: string[]): Promise<Blob> {
-    return httpClient.postBlob('/products/export-pdf', { ids });
+  exportPdf(items: Array<{ id: string; comment: string }>): Promise<Blob> {
+    return httpClient.postBlob('/products/export-pdf', { items });
   },
 
   create(payload: CreateProductPayload = {}): Promise<Product> {

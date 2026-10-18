@@ -93,8 +93,15 @@ productsRouter.get('/:id', async (req, res, next) => {
 productsRouter.post('/export-pdf', async (req, res, next) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const ids = asStringArray(body.ids) ?? [];
-    const pdf = await buildListPdf(ids);
+    const rawItems = Array.isArray(body.items) ? body.items : [];
+    const items = rawItems
+      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+      .map((item) => ({
+        id: asString(item.id) ?? '',
+        comment: asString(item.comment) ?? '',
+      }))
+      .filter((item) => item.id.length > 0);
+    const pdf = await buildListPdf(items);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="list.pdf"');
     res.send(pdf);

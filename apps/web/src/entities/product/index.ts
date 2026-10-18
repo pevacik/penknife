@@ -1,6 +1,6 @@
 export { ProductCard } from './ui/ProductCard/ProductCard';
 export { useProductStore } from './model/store';
-export { getProductionCountryLabel, productionCountryOptions } from './model/fields';
+export { getProductionCountryLabel, getProductionTerm, productionCountryOptions } from './model/fields';
 export type {
   CountryFilter,
   Make50Filter,

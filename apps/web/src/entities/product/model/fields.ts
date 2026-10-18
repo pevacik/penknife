@@ -12,3 +12,12 @@ export function getProductionCountryLabel(value: ProductionCountry): string {
   return productionCountryOptions.find((option) => option.value === value)?.label ?? value;
 }
 
+const PRODUCTION_TERM: Record<ProductionCountry, string> = {
+  russia: '25 рабочих дней',
+  china: '2 месяца',
+};
+
+export function getProductionTerm(value: ProductionCountry): string {
+  return PRODUCTION_TERM[value];
+}
+

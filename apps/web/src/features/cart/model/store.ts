@@ -5,12 +5,14 @@ export interface CartItem {
   id: string;
   title: string;
   imageUrl: string;
+  comment: string;
 }
 
 interface CartState {
   items: CartItem[];
   add: (item: CartItem) => void;
   remove: (id: string) => void;
+  setComment: (id: string, comment: string) => void;
   clear: () => void;
 }
 
@@ -26,6 +28,10 @@ export const useCartStore = create<CartState>()(
         ),
       remove: (id) =>
         set((state) => ({ items: state.items.filter((item) => item.id !== id) })),
+      setComment: (id, comment) =>
+        set((state) => ({
+          items: state.items.map((item) => (item.id === id ? { ...item, comment } : item)),
+        })),
       clear: () => set({ items: [] }),
     }),
     {
