@@ -10,7 +10,9 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .trigger:hover {
@@ -49,6 +51,7 @@
   padding: 0;
   list-style: none;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .item {
@@ -118,7 +121,9 @@
   border: 1px solid #fca5a5;
   border-radius: 50%;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .remove:hover {
