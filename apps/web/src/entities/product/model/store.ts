@@ -7,6 +7,7 @@ import type {
   CreateProductPayload,
   Product,
   ProductListParams,
+  UpdateCommentPayload,
   UpdateProductPayload,
 } from './types';
 
@@ -27,6 +28,7 @@ interface ProductState {
   updateProduct: (id: string, payload: UpdateProductPayload) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   addComment: (id: string, payload: CreateCommentPayload) => Promise<void>;
+  updateComment: (id: string, commentId: string, payload: UpdateCommentPayload) => Promise<void>;
   deleteComment: (id: string, commentId: string) => Promise<void>;
   deleteCommentImage: (id: string, commentId: string, imageId: string) => Promise<void>;
   addImage: (id: string, payload: CreateImagePayload) => Promise<void>;
@@ -162,6 +164,14 @@ export const useProductStore = create<ProductState>((set, get) => ({
 
   deleteComment: async (id, commentId) => {
     const updated = normalizeProduct(await productApi.deleteComment(id, commentId));
+    set((state) => ({
+      products: state.products.map((product) => (product.id === id ? updated : product)),
+      productsById: { ...state.productsById, [id]: updated },
+    }));
+  },
+
+  updateComment: async (id, commentId, payload) => {
+    const updated = normalizeProduct(await productApi.updateComment(id, commentId, payload));
     set((state) => ({
       products: state.products.map((product) => (product.id === id ? updated : product)),
       productsById: { ...state.productsById, [id]: updated },

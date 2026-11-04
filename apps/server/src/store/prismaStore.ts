@@ -8,6 +8,7 @@ import type {
   ProductEditableFields,
   ProductListResult,
   ProductionCountry,
+  UpdateCommentPayload,
   UpdateProductPayload,
 } from '../types';
 
@@ -131,8 +132,11 @@ function serializeProduct(product: ProductWithRelations): Product {
       id: comment.id,
       title: comment.title,
       text: comment.text,
+      authorId: comment.authorId,
+      authorName: comment.authorName,
       images: comment.images.map((image) => ({ id: image.id, url: image.url })),
       createdAt: comment.createdAt.toISOString(),
+      updatedAt: comment.updatedAt ? comment.updatedAt.toISOString() : null,
     })),
     createdAt: product.createdAt.toISOString(),
   };
@@ -263,6 +267,7 @@ export async function deleteProduct(id: string): Promise<boolean> {
 export async function addComment(
   id: string,
   payload: CreateCommentPayload,
+  author: { id: string; username: string },
 ): Promise<Product | null> {
   const existing = await fetchProduct(id);
   if (!existing) {
@@ -273,6 +278,8 @@ export async function addComment(
     data: {
       title: payload.title.trim(),
       text: sanitizeText(payload.text),
+      authorId: author.id,
+      authorName: author.username,
       productId: id,
       images: {
         create: (payload.images ?? [])
@@ -281,6 +288,42 @@ export async function addComment(
       },
     },
   });
+
+  return fetchProduct(id);
+}
+
+export async function getComment(
+  id: string,
+  commentId: string,
+): Promise<{ id: string; authorId: string | null } | null> {
+  return prisma.comment.findFirst({
+    where: { id: commentId, productId: id },
+    select: { id: true, authorId: true },
+  });
+}
+
+export async function updateComment(
+  id: string,
+  commentId: string,
+  payload: UpdateCommentPayload,
+): Promise<Product | null> {
+  const existing = await fetchProduct(id);
+  if (!existing) {
+    return null;
+  }
+
+  const result = await prisma.comment.updateMany({
+    where: { id: commentId, productId: id },
+    data: {
+      title: payload.title.trim(),
+      text: sanitizeText(payload.text),
+      updatedAt: new Date(),
+    },
+  });
+
+  if (result.count === 0) {
+    return null;
+  }
 
   return fetchProduct(id);
 }

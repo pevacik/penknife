@@ -5,6 +5,7 @@ import { downloadBlob } from '@/shared/lib/download';
 import { Button } from '@/shared/ui/Button';
 import { Modal } from '@/shared/ui/Modal';
 import { CartIcon } from './CartIcon';
+import { getImageUrl } from '@/shared/lib/imageUrl';
 import styles from './CartButton.module.css';
 
 export function CartButton() {
@@ -67,7 +68,13 @@ export function CartButton() {
                 <li key={item.id} className={styles.item}>
                   <div className={styles.itemRow}>
                     {item.imageUrl ? (
-                      <img className={styles.thumb} src={item.imageUrl} alt="" />
+                      <img
+                        className={styles.thumb}
+                        src={getImageUrl(item.imageUrl, 'thumb')}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : (
                       <span className={styles.thumbEmpty} />
                     )}

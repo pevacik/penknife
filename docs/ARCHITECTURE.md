@@ -19,44 +19,58 @@ apps/
 
 | Файл | Ответственность |
 |---|---|
-| `src/index.ts` | Точка входа: `PORT` / `HOST` (0.0.0.0), печать IP для доступа из сети |
-| `src/app.ts` | Сборка Express: CORS, JSON, маршруты, раздача собранного фронта + SPA-fallback |
+| `src/index.ts` | Точка входа: `PORT` / `HOST` (по умолчанию `127.0.0.1`), очистка истёкших сессий, печать LAN-адресов только при `HOST=0.0.0.0` |
+| `src/app.ts` | Сборка Express: security-заголовки, CORS, JSON, auth, лимиты, маршруты, статика + SPA-fallback |
+| `src/config.ts` | Настройки из env: CORS, TTL сессии, флаги cookie, trust proxy |
+| `src/auth/*` | Пароли (scrypt), сессии в БД, cookie, типы `req.user` |
+| `src/middleware/*` | `requireAuth`, `originCheck`, `rateLimit`, `securityHeaders`, `errorHandler` |
+| `src/routes/auth.ts` | `POST /login`, `POST /logout`, `GET /me` |
 | `src/db.ts` | Синглтон `PrismaClient` + загрузка `.env` |
 | `src/storage.ts` | Путь к папке `uploads/` |
 | `src/types.ts` | Доменные типы: `Product`, `ProductComment`, `ProductImage`, payload-типы |
 | `src/routes/products.ts` | REST карточек: список (пагинация+фильтры), CRUD, комментарии, картинки, `POST /export-pdf` |
-| `src/routes/uploads.ts` | Загрузка изображений (multer) → `/uploads/:file` |
+| `src/routes/uploads.ts` | Загрузка изображений (multipart) и `POST /from-url` → `/uploads/:file` |
+| `src/routes/media.ts` | Раздача вариантов: `GET /media/:variant/:file` (WebP, immutable-кэш) |
+| `src/images.ts` | Варианты (`thumb`/`medium`/PDF-JPEG), ленивая генерация, атомарная запись, импорт по ссылке |
+| `src/safeFetch.ts` | Скачивание картинок: SSRF-гард, лимиты 15 МБ / 15 с, ручные редиректы |
+| `src/httpError.ts` | Ошибка с HTTP-статусом для error-middleware |
 | `src/store/prismaStore.ts` | Весь CRUD через Prisma + сериализация в прежнюю форму `Product` |
-| `src/pdf.ts` | Генерация PDF (картинка + комментарий, кириллица) |
+| `src/pdf.ts` | Генерация PDF (JPEG-вариант картинки + комментарий, кириллица) |
 | `prisma/schema.prisma` | Модели: `Product`, `ProductImage`, `Comment`, `CommentImage` |
 | `scripts/import-json-to-db.ts` | Разовый импорт старых данных из `data/products.json` |
+| `scripts/create-user.ts` | Создание пользователя / смена пароля (`npm run user:create`) |
+| `scripts/generate-image-variants.ts` | Прогрев вариантов всех картинок (`npm run images:variants`) |
 | `assets/fonts/NotoSans-Regular.ttf` | Шрифт с кириллицей для PDF |
 
 **Модель данных (Prisma)**:
 - `Product` — карточка (`title`, `price`, `circulation`, `make50`, `productionCountry`, `tags[]`, `createdAt`).
 - `ProductImage` — картинка карточки (`url`, `productId`, cascade delete).
-- `Comment` — комментарий (`title`, `text`, `createdAt`, `productId`, cascade delete).
+- `Comment` — комментарий (`title`, `text`, `authorId`, `authorName`, `createdAt`, `updatedAt`, `productId`, cascade delete). Автор и имя фиксируются в момент создания, имя сохраняется даже после удаления пользователя.
 - `CommentImage` — картинка комментария (`url`, `commentId`, cascade delete).
+- `User` — администратор (`username`, `passwordHash`, `role`).
+- `Session` — сессия (`tokenHash`, `userId`, `expiresAt`, cascade delete).
 
 **Конфигурация**: `DATABASE_URL` в `apps/server/.env` (пример — `.env.example`); PostgreSQL поднимается `docker-compose.yml`.
 
 ## 3. Фронтенд (`apps/web`) — FSD
 
 - `app/` — корень: `App.tsx`, глобальные стили (`styles/index.css`, CSS-переменные).
-- `pages/` — `home`, `product-detail`.
+- `pages/` — `home`, `product-detail`, `login`, `admin-users`.
 - `widgets/` — `header`, `product-list`.
 - `features/` — бизнес-фичи:
   - `add-product` — кнопка «Добавить карточку».
+  - `auth` — форма входа (данные сессии и права живут в `entities/session`).
+  - `manage-users` — админ-панель: список пользователей, создание/удаление, роли и персональные права.
   - `cart` — корзина (`model/store`, `CartButton`, `CartToggleButton`, `CartIcon`).
   - `delete-product`, `edit-product` — удаление / форма редактирования.
-  - `product-comments`, `product-images` — комментарии и картинки на странице карточки.
+  - `product-comments`, `product-images` — комментарии (с автором, временем и редактированием) и картинки на странице карточки.
   - `product-csv` — импорт/экспорт CSV.
   - `product-filters`, `search-products` — фильтры и поиск.
-- `entities/` — `product`: модель (`types`, `fields`), `store` (zustand), `api`, `ui/ProductCard`, `lib/normalize`.
+- `entities/` — `product`: модель (`types`, `fields`), `store` (zustand), `api`, `ui/ProductCard`, `lib/normalize`; `session`: стор `useAuthStore`, API (`login/logout/me`), эффективные права (`useCan`), подписи ролей и прав (`ROLE_LABEL`, `PERMISSION_LABEL`), типы.
 - `shared/`:
   - `ui/` — `Button`, `Input`, `Select`, `Textarea`, `Modal`, `ImageLightbox`.
-  - `api/` — `httpClient`, `uploadImage`.
-  - `lib/` — `csv`, `download`, `clipboard`.
+  - `api/` — `httpClient`, `uploadImage` (+ `importImageFromUrl`).
+  - `lib/` — `csv`, `download`, `clipboard`, `imageUrl`.
   - `config/env.ts` — `API_URL` (по умолчанию `/api`, переопределяется `VITE_API_URL`).
 ## 4. Основные потоки данных
 
@@ -65,24 +79,55 @@ apps/
 
 **Страница карточки**: `ProductDetailPage` → `getProduct(id)` → `GET /api/products/:id`, кэш в `productsById`.
 
+**Вход**: `App` → `loadMe()` → `GET /api/auth/me`; без сессии показывается `LoginPage` → `POST /api/auth/login` ставит httpOnly-cookie. Любой ответ `401` в `httpClient` отправляет событие `auth:unauthorized`, и стор сбрасывает пользователя на форму входа.
+
+**Смена своего пароля**: `ChangePasswordButton` → `POST /api/auth/password` с текущим и новым паролем; сервер проверяет текущий, пишет `passwordChangedAt`/`passwordChangedById`/`passwordChangedByName` и завершает все сессии пользователя, кроме текущей. Админ меняет чужой пароль через `PATCH /api/users/:id` — тогда в аудите сохраняется его имя.
+
+**Права в UI**: `useCan('createProduct' | …)` из `entities/session` читает эффективные права, которые вернул `GET /api/auth/me`; сервер независимо проверяет их через `requirePermission`. На `403` фронт перезапрашивает `/me` (событие `auth:forbidden`), поэтому выданные или отозванные права подхватываются без перелогина.
+
+**Админ-панель**: `AdminUsersPage` (`/admin/users`, доступ по `manageUsers`) → `features/manage-users` → `GET/POST/PATCH/DELETE /api/users`, `POST /api/users/:id/logout`. Персональные права хранятся как `grantedPermissions`/`revokedPermissions`, эффективный набор считает сервер.
+
 **Корзина**: `useCartStore` (zustand + persist в `localStorage`). Позиция хранит `{ id, title, imageUrl, comment }`. Комментарий генерируется автоматически (`Цена от … · Тираж от … · Срок: …`) и редактируется в корзине.
 
-**PDF**: `CartButton` → `productApi.exportPdf(items)` → `POST /api/products/export-pdf` с `{ items: [{ id, comment }] }` → `pdf.ts` рисует для каждой позиции альбомную страницу (картинка + комментарий).
+**PDF**: `CartButton` → `productApi.exportPdf(items)` → `POST /api/products/export-pdf` с `{ items: [{ id, comment }] }` → `pdf.ts` рисует для каждой позиции альбомную страницу: картинка вписывается (`fit`, без кропа и растяжения) в 16:9-рамку на всю ширину страницы от верхнего края; при других пропорциях картинка центрируется и остаётся «воздух». Под рамкой — до 4 строк комментария (12 pt), длинный текст обрезается с «…».
 
-**CSV**: `CsvMenu` — экспорт через `GET /api/products/all`, импорт через существующие API (создание/обновление).
+**CSV**: `CsvMenu` — экспорт через `GET /api/products/all`, импорт через существующие API (создание/обновление). Битые ссылки на картинки пропускаются и не роняют импорт.
 
-## 5. Переиспользуемые элементы
+**Комментарии**: `CommentSection` → `POST /api/products/:id/comments`; сервер записывает `authorId`/`authorName` из сессии и `createdAt`. Редактирование — `PATCH /api/products/:id/comments/:commentId`: автор или админ, при изменении ставится `updatedAt`. Удаление (`DELETE .../comments/:commentId`) — только право `deleteComments` (роль `admin`); удаление картинки комментария — автор или админ.
+
+**Картинки**: `ImageSection` → `uploadImage(file)` → `POST /api/uploads` (multipart) или `importImageFromUrl(url)` → `POST /api/uploads/from-url`. В обоих случаях сервер сохраняет файл как `/uploads/<uuid>.<ext>`, прогревает варианты и возвращает локальный URL, который уходит в `POST /api/products/:id/images`. Сервер сам скачивает внешние `http(s)`-URL (в том числе из CSV и комментариев), поэтому в БД попадают только локальные ссылки.
+
+## 5. Картинки: варианты, кэш, как добавить новый размер
+
+- В БД хранится один URL — `/uploads/<uuid>.<ext>`; производные размеры вычисляются из него.
+- Варианты (`apps/server/src/images.ts`, `IMAGE_VARIANTS`):
+
+| Вариант | Ширина | Формат | Где используется |
+|---|---|---|---|
+| `thumb` | 480 px | WebP q72 | витрина, корзина, превью в галерее и комментариях |
+| `medium` | 1280 px | WebP q80 | резерв для карточки/крупных экранов |
+| `pdf` | до 1600 px | JPEG q82 | встраивание в PDF (пропорции сохраняются, в PDF вписывается в 16:9-рамку) |
+
+- Файлы лежат в `apps/server/uploads/.variants/<variant>/<uuid>.webp` (для PDF — `.jpg`). Папка с точкой не раздаётся `express.static` (`dotfiles: 'ignore'`), наружу доступен только `/media/:variant/:file`.
+- Генерация: при загрузке/импорте (сразу `thumb` + `medium`) и лениво в `GET /media/:variant/:file` — `ensureVariant()` досоздаёт вариант при первом запросе. Параллельные запросы одного варианта делят один `Promise`; запись атомарная (tmp-файл → `rename`).
+- Прогрев существующих файлов: `npm run images:variants` (progress + отчёт по весам).
+- Кэш: `/uploads` и `/media` — `Cache-Control: public, max-age=31536000, immutable`; `/assets/*` (Vite, хэш в имени) — тоже `immutable`; `index.html` — `no-cache`. Имена файлов — UUID, поэтому `immutable` безопасен.
+- Фронтенд: `getImageUrl(url, variant)` из `shared/lib/imageUrl` превращает `/uploads/x.png` в `/media/thumb/x.png`; у превью `loading="lazy"` и `decoding="async"`, лайтбокс всегда грузит `original`.
+- **Как добавить новый размер**: добавить запись в `IMAGE_VARIANTS` (`images.ts`) → прогнать `npm run images:variants` → использовать `getImageUrl(url, 'новый')` во фронте. Схема БД и API карточек не меняются.
+- Ограничения: анимированные GIF дают статичные варианты (оригинал остаётся анимированным); при удалении картинки из БД файлы и варианты не чистятся; `immutable` на год корректен только пока файлы не перезаписываются на месте.
+
+## 6. Переиспользуемые элементы
 
 - `shared/ui/Modal` — модальное окно (`title`, `onClose`, `children`, `actions`); используется в корзине и CSV.
 - `shared/ui/Button`, `Input`, `Select`, `Textarea` — базовые контролы.
 - `shared/ui/ImageLightbox` — просмотр картинок (листание).
 - `shared/lib/download` — `downloadBlob`, `downloadTextFile`.
 - `shared/lib/clipboard` — чтение картинок из буфера обмена.
-- `shared/api/httpClient` — обёртка над `fetch` (JSON + blob), `uploadImage`.
+- `shared/api/httpClient` — обёртка над `fetch` (JSON + blob); ошибки — `HttpError` со `status` и сообщением сервера; `uploadImage`, `importImageFromUrl`.
 - `entities/product/model/fields` — `getProductionCountryLabel`, `getProductionTerm`.
 - `features/cart/ui/CartIcon` — иконка корзины.
 
-## 6. Запуск / сборка / БД
+## 7. Запуск / сборка / БД
 
 ```bash
 npm install
@@ -91,24 +136,49 @@ cd apps/server
 npx prisma generate
 npx prisma db push            # синхронизировать схему
 npm run db:import             # необязательно: перенос data/products.json
+npm run user:create -- admin  # создать пользователя для входа (спросит пароль)
 # из корня:
 npm run dev                   # фронт + сервер
 ```
 
 Сборка: `npm run build` (фронт), `npm run build:server` (сервер), `npm run start` (собранный сервер).
 
-## 7. Как добавить фичу
+`.env` в корне задаёт `POSTGRES_PASSWORD` для docker compose; `apps/server/.env` — `DATABASE_URL`, `HOST`, `CORS_ORIGINS`, `SESSION_TTL_DAYS`, `COOKIE_SECURE`, `TRUST_PROXY` (образцы — `.env.example`).
+
+## 8. Как добавить фичу
 
 1. **Сервер**: при необходимости — модель в `prisma/schema.prisma` → `prisma db push`; добавить функцию в `store/prismaStore.ts` (или новый store); добавить маршрут в `routes/`.
 2. **Фронт**: тип/поле в `entities/product/model/types.ts`; метод в `api/productApi.ts`; экшен в `model/store.ts`; UI-компонент в нужной `features/*`.
 3. Прогнать `npm run build` и `npm run build:server`.
 
-## 8. Известные нюансы
+## 9. Известные нюансы
 
-- **pdfkit**: не используй `doc.heightOfString()` — он создаёт лишние страницы; под комментарий зарезервирована фиксированная область.
+- **pdfkit**: не используй `doc.heightOfString()` — он создаёт лишние страницы. Комментарий в PDF рисуется с `height = 4 * currentLineHeight()` и `ellipsis: true` — так он занимает максимум 4 строки и не уезжает на новую страницу; без `height` длинный текст создаёт лишнюю страницу.
+- **PDF-картинки**: рисуются в рамке 16:9 на всю ширину страницы от верхнего края через `doc.image(..., { fit, align: 'center', valign: 'center' })` — пропорции сохраняются, кропа и растяжения нет. Для не-16:9 остаётся «воздух» по бокам или сверху/снизу; при печати на принтере без borderless края 16:9-картинки могут подрезаться.
+- **pdfkit не читает WebP** — в PDF попадает JPEG-вариант (`getPdfImageBuffer`), а не `medium`.
 - Встроенные шрифты pdfkit не поддерживают кириллицу — используется `assets/fonts/NotoSans-Regular.ttf`.
 - **Prisma зафиксирована на v6** (`6.19.3`); v7 — другой мажорный релиз.
-- Картинки лежат на диске в `apps/server/uploads/`, в БД хранятся только URL.
+- Картинки лежат на диске в `apps/server/uploads/`, в БД — только локальные URL (см. раздел 5).
+- `/uploads` и `/media` отдаются с `private, immutable` на год: не перезаписывай файлы на месте, иначе браузер продолжит показывать старую версию.
+- SSRF-гард (`safeFetch.ts`) блокирует loopback, приватные, link-local и CGNAT-адреса и перепроверяет каждый редирект, но не закрывает DNS-rebinding (адрес резолвится отдельно при проверке и при `fetch`).
+- `198.18.0.0/15` (используется частью VPN/прокси) намеренно не блокируется, иначе импорт по ссылке ломается в таких сетях.
 - Метки стран дублируются между сервером (`COUNTRY_LABEL` в `prismaStore.ts`) и фронтом (`getProductionCountryLabel`) — это разные рантаймы, синхронизировать вручную.
 - `.env`, `apps/server/data/`, `apps/server/uploads/` — в `.gitignore`.
+
+## 10. Аутентификация, роли и безопасность
+
+- **Роли и права**: база по роли (`admin` — всё; `user` — создание/редактирование, картинки, комментарии, PDF, но без удаления карточек, CSV и удаления комментариев; `viewer` — чтение и PDF) плюс персональные `grantedPermissions`/`revokedPermissions`. Эффективные права = `(база ∪ granted) \ revoked`; `viewProducts`, `deleteComments` и `manageUsers` не переопределяются (просмотр у всех, удаление комментариев и управление пользователями — только у `admin`). Неизвестная роль трактуется как `viewer`.
+- **Модели**: `User` (`username`, `passwordHash`, `passwordChangedAt`, `passwordChangedById`, `passwordChangedByName`, `role` с дефолтом `viewer`, `grantedPermissions[]`, `revokedPermissions[]`) и `Session` (`tokenHash`, `expiresAt`, `lastUsedAt`).
+- **Пароли**: `crypto.scrypt` (N=16384, r=8, p=1, соль 16 байт, ключ 64 байта), формат `scrypt$N$r$p$salt$hash`, проверка через `timingSafeEqual`. Для несуществующего логина выполняется проверка по dummy-хэшу, чтобы время ответа не выдавало наличие пользователя.
+- **Сессия**: случайный токен в httpOnly-cookie `penknife_sid` (`SameSite=Lax`, `Secure` в проде, `Path=/`, TTL 7 дней из `SESSION_TTL_DAYS`). В БД хранится SHA-256 токена; `lastUsedAt` обновляется не чаще раза в час; истёкшие сессии чистятся при старте и раз в час.
+- **CLI**: `npm run user:create --workspace server -- <логин> [--role=admin|user|viewer] [--grant=...] [--revoke=...]`. Без `--role` первый пользователь в пустой БД становится `admin`, остальные — `user`. Есть `--list` (роль, доп. права, отозванные, сессии) и `--delete=<логин>`; последнего `admin` удалить нельзя; смена пароля или роли удаляет все сессии пользователя.
+- **Middleware** (порядок в `app.ts`): `securityHeaders` → `cors` (allowlist + `credentials`) → `express.json` → `requestId` (`X-Request-Id`) → `originCheck` → `/api/health` и `/api/auth` → `apiRateLimit` → `requireAuth` → роутеры с `requirePermission(...)` → `errorHandler`.
+- **Доступ**: публичны только `/api/health`, `/api/auth/*` и статика фронта; `/api/*`, `/media`, `/uploads` требуют сессию. Права на операции: `createProduct`, `editProduct`, `deleteProduct`, `manageImages`, `manageComments`, `deleteComments`, `csv`, `exportPdf`; `/api/users*` — только `manageUsers`. `deleteComments` структурное: есть только у `admin`, персонально не выдаётся.
+- **Админ-панель**: `/admin/users` (только `manageUsers`): создание/удаление пользователей, роль, персональные права, смена пароля, «разлогинить». В таблице отображается, когда и кем обновлён пароль (`passwordChangedAt` + `passwordChangedById/Name`: сам, admin или CLI), сами пароли не отдаются. Нельзя изменить/удалить себя и остаться без администратора; смена роли или пароля завершает сессии пользователя, изменение только прав — нет (применяется сразу).
+- **Фронтенд**: `useCan()` из `entities/session` читает эффективные права из `/api/auth/me` и скрывает недоступные действия; `viewer` получает read-only форму карточки. Это UX — сервер проверяет права сам. При `403` и возврате на вкладку стор перезапрашивает `/me` (не чаще раза в 30 секунд).
+- **CSRF**: cookie `SameSite=Lax` + проверка `Origin` для не-GET запросов в production (в dev отключена, чтобы не ломать LAN-адреса за Vite-прокси).
+- **Лимиты**: вход — 5 неудач на IP+логин за 15 минут (`429` + `Retry-After`); смена пароля — 5 неудачных попыток на IP+пользователя за 15 минут; API — 300 запросов/мин на IP. Все лимитеры in-memory, рассчитаны на один процесс.
+- **Ошибки**: 4xx отдают понятное сообщение, 500 — нейтральное «Ошибка сервера»; стек и детали Prisma только в серверный лог вместе с `X-Request-Id`. `X-Powered-By` отключён.
+- **CSP** (`production`): `default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`.
+- **Ограничения**: нет аудита действий администратора; нет 2FA и сброса пароля по email; права не привязаны к объектам (владельца у карточки нет); `manageUsers` нельзя выдать отдельно — только ролью `admin`; при показе по обычному http в проде нужен `COOKIE_SECURE=false`; фронтенд-бандл после входа всё равно скачивается клиенту.
 

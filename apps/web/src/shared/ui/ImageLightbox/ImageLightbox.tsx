@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getImageUrl } from '@/shared/lib/imageUrl';
 import styles from './ImageLightbox.module.css';
 
 export interface LightboxImage {
@@ -107,7 +108,12 @@ export function ImageLightbox({ images, startIndex, onClose }: ImageLightboxProp
       )}
 
       <figure className={styles.figure} onClick={(event) => event.stopPropagation()}>
-        <img className={styles.image} src={current.url} alt="" />
+        <img
+          className={styles.image}
+          src={getImageUrl(current.url, 'original')}
+          alt=""
+          decoding="async"
+        />
         <figcaption className={styles.counter}>
           {index + 1} / {images.length}
         </figcaption>

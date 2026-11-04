@@ -20,6 +20,33 @@ model Product {
   comments          Comment[]
 }
 
+model User {
+  id                     String    @id @default(uuid())
+  username               String    @unique
+  passwordHash           String
+  passwordChangedAt      DateTime?
+  passwordChangedById    String?
+  passwordChangedByName  String?
+  role                   String    @default("viewer")
+  grantedPermissions     String[]  @default([])
+  revokedPermissions     String[]  @default([])
+  createdAt              DateTime  @default(now())
+  sessions               Session[]
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 model ProductImage {
   id        String  @id @default(uuid())
   url       String
@@ -30,13 +57,16 @@ model ProductImage {
 }
 
 model Comment {
-  id        String         @id @default(uuid())
-  title     String
-  text      String         @default("")
-  createdAt DateTime       @default(now())
-  productId String
-  product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  images    CommentImage[]
+  id         String         @id @default(uuid())
+  title      String
+  text       String         @default("")
+  authorId   String?
+  authorName String         @default("")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime?
+  productId  String
+  product    Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  images     CommentImage[]
 
   @@index([productId])
 }

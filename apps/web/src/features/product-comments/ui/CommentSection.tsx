@@ -7,7 +7,9 @@ import { Input } from '@/shared/ui/Input';
 import { Textarea } from '@/shared/ui/Textarea';
 import { ImageLightbox } from '@/shared/ui/ImageLightbox';
 import { readImageFilesFromClipboard } from '@/shared/lib/clipboard';
+import { getImageUrl } from '@/shared/lib/imageUrl';
 import { uploadImage } from '@/shared/api/uploadImage';
+import { useAuthStore, useCan } from '@/entities/session';
 import styles from './CommentSection.module.css';
 
 interface CommentSectionProps {
@@ -21,8 +23,12 @@ interface LightboxState {
 
 export function CommentSection({ product }: CommentSectionProps) {
   const addComment = useProductStore((state) => state.addComment);
+  const updateComment = useProductStore((state) => state.updateComment);
   const deleteComment = useProductStore((state) => state.deleteComment);
   const deleteCommentImage = useProductStore((state) => state.deleteCommentImage);
+  const canManage = useCan('manageComments');
+  const canDeleteComments = useCan('deleteComments');
+  const currentUser = useAuthStore((state) => state.user);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
@@ -30,7 +36,52 @@ export function CommentSection({ product }: CommentSectionProps) {
   const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editText, setEditText] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const canEditComment = (comment: Product['comments'][number]): boolean =>
+    canManage &&
+    (currentUser?.role === 'admin' ||
+      (comment.authorId !== null && comment.authorId === currentUser?.id));
+
+  const startEdit = (comment: Product['comments'][number]) => {
+    setEditingId(comment.id);
+    setEditTitle(comment.title);
+    setEditText(comment.text);
+    setEditError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async (commentId: string) => {
+    if (!editTitle.trim() || savingEdit) {
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      await updateComment(product.id, commentId, {
+        title: editTitle.trim(),
+        text: editText.trim(),
+      });
+      setEditingId(null);
+    } catch (err) {
+      setEditError(
+        err instanceof Error && err.message ? err.message : 'Не удалось сохранить комментарий',
+      );
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleFiles = async (files: File[]) => {
     if (files.length === 0) {
@@ -38,6 +89,7 @@ export function CommentSection({ product }: CommentSectionProps) {
     }
 
     setUploading(true);
+    setError(null);
     try {
       const urls: string[] = [];
       for (const file of files) {
@@ -45,6 +97,10 @@ export function CommentSection({ product }: CommentSectionProps) {
         urls.push(url);
       }
       setImages((prev) => [...prev, ...urls]);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message ? err.message : 'Не удалось загрузить изображение',
+      );
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -94,7 +150,8 @@ export function CommentSection({ product }: CommentSectionProps) {
     <section className={styles.section}>
       <h2 className={styles.heading}>Комментарии</h2>
 
-      <form className={styles.form} onSubmit={handleSubmit} onPaste={handlePaste}>
+      {canManage && (
+        <form className={styles.form} onSubmit={handleSubmit} onPaste={handlePaste}>
         <Input
           value={title}
           placeholder="Заголовок"
@@ -110,7 +167,13 @@ export function CommentSection({ product }: CommentSectionProps) {
           <div className={styles.previewList}>
             {images.map((url, index) => (
               <div key={`${url}-${index}`} className={styles.previewItem}>
-                <img className={styles.previewImage} src={url} alt="" />
+                <img
+                  className={styles.previewImage}
+                  src={getImageUrl(url, 'thumb')}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
                 <button
                   type="button"
                   className={styles.previewRemove}
@@ -137,7 +200,10 @@ export function CommentSection({ product }: CommentSectionProps) {
             {uploading ? 'Загрузка…' : 'Прикрепить изображение'}
           </Button>
         </div>
-        <p className={styles.hint}>Можно вставить изображение из буфера обмена (Ctrl+V)</p>
+        {error && <p className={styles.error}>{error}</p>}
+        <p className={styles.hint}>
+          Комментарий будет подписан вашим именем. Можно вставить изображение из буфера обмена (Ctrl+V)
+        </p>
 
         <input
           ref={fileInputRef}
@@ -147,56 +213,116 @@ export function CommentSection({ product }: CommentSectionProps) {
           className={styles.hidden}
           onChange={handleFileChange}
         />
-      </form>
+        </form>
+      )}
 
       {product.comments.length === 0 ? (
         <p className={styles.empty}>Комментариев пока нет.</p>
       ) : (
         <ul className={styles.list}>
-          {product.comments.map((comment) => (
-            <li key={comment.id} className={styles.item}>
-              <div className={styles.itemHeader}>
-                <h3 className={styles.itemTitle}>{comment.title}</h3>
-                <button
-                  type="button"
-                  className={styles.delete}
-                  onClick={() => void deleteComment(product.id, comment.id)}
-                >
-                  Удалить
-                </button>
-              </div>
-              {comment.text && <p className={styles.itemText}>{comment.text}</p>}
+          {product.comments.map((comment) => {
+            const isEditing = editingId === comment.id;
 
-              {comment.images.length > 0 && (
-                <div className={styles.images}>
-                  {comment.images.map((image, index) => (
-                    <div key={image.id} className={styles.imageItem}>
-                      <button
+            return (
+              <li key={comment.id} className={styles.item}>
+                {isEditing ? (
+                  <div className={styles.editForm}>
+                    <Input
+                      value={editTitle}
+                      placeholder="Заголовок"
+                      onChange={(event) => setEditTitle(event.target.value)}
+                    />
+                    <Textarea
+                      value={editText}
+                      placeholder="Комментарий"
+                      onChange={(event) => setEditText(event.target.value)}
+                    />
+                    {editError && <p className={styles.error}>{editError}</p>}
+                    <div className={styles.editActions}>
+                      <Button
                         type="button"
-                        className={styles.imageButton}
-                        onClick={() => setLightbox({ images: comment.images, index })}
-                        aria-label="Открыть изображение"
+                        onClick={() => void handleSaveEdit(comment.id)}
+                        disabled={savingEdit || !editTitle.trim()}
                       >
-                        <img className={styles.imageThumb} src={image.url} alt="" />
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.imageRemove}
-                        aria-label="Удалить изображение"
-                        onClick={() => void deleteCommentImage(product.id, comment.id, image.id)}
-                      >
-                        ×
-                      </button>
+                        {savingEdit ? 'Сохранение…' : 'Сохранить'}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={cancelEdit} disabled={savingEdit}>
+                        Отмена
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.itemHeader}>
+                      <h3 className={styles.itemTitle}>{comment.title}</h3>
+                      <div className={styles.commentActions}>
+                        {canEditComment(comment) && (
+                          <button
+                            type="button"
+                            className={styles.edit}
+                            onClick={() => startEdit(comment)}
+                          >
+                            Редактировать
+                          </button>
+                        )}
+                        {canDeleteComments && (
+                          <button
+                            type="button"
+                            className={styles.delete}
+                            onClick={() => void deleteComment(product.id, comment.id)}
+                          >
+                            Удалить
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {comment.text && <p className={styles.itemText}>{comment.text}</p>}
+                  </>
+                )}
 
-              <span className={styles.itemDate}>
-                {new Date(comment.createdAt).toLocaleString('ru-RU')}
-              </span>
-            </li>
-          ))}
+                {comment.images.length > 0 && (
+                  <div className={styles.images}>
+                    {comment.images.map((image, index) => (
+                      <div key={image.id} className={styles.imageItem}>
+                        <button
+                          type="button"
+                          className={styles.imageButton}
+                          onClick={() => setLightbox({ images: comment.images, index })}
+                          aria-label="Открыть изображение"
+                        >
+                          <img
+                            className={styles.imageThumb}
+                            src={getImageUrl(image.url, 'thumb')}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </button>
+                        {canEditComment(comment) && (
+                          <button
+                            type="button"
+                            className={styles.imageRemove}
+                            aria-label="Удалить изображение"
+                            onClick={() => void deleteCommentImage(product.id, comment.id, image.id)}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <span className={styles.itemDate}>
+                  {comment.authorName || 'Автор не указан'} ·{' '}
+                  {new Date(comment.createdAt).toLocaleString('ru-RU')}
+                  {comment.updatedAt && (
+                    <> · изменён {new Date(comment.updatedAt).toLocaleString('ru-RU')}</>
+                  )}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
 

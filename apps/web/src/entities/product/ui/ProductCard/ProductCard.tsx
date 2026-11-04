@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { Product } from '../../model/types';
+import { getImageUrl } from '@/shared/lib/imageUrl';
 import styles from './ProductCard.module.css';
 
 interface ProductCardProps {
@@ -14,7 +15,15 @@ export function ProductCard({ product, action }: ProductCardProps) {
   return (
     <Link to={`/products/${product.id}`} className={styles.card}>
       <div className={styles.image}>
-        {cover ? <img className={styles.img} src={cover} alt="" /> : null}
+        {cover ? (
+          <img
+            className={styles.img}
+            src={getImageUrl(cover, 'thumb')}
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
+        ) : null}
       </div>
       <div className={styles.body}>
         <h3 className={styles.title}>{product.title}</h3>

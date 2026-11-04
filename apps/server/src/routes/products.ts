@@ -7,12 +7,17 @@ import {
   deleteCommentImage,
   deleteImage,
   deleteProduct,
+  getComment,
   getProductById,
   readAllProducts,
   readProducts,
+  updateComment,
   updateProduct,
 } from '../store/prismaStore';
 import { buildListPdf } from '../pdf';
+import { httpError } from '../httpError';
+import { importFromUrl, isLocalImageUrl } from '../images';
+import { requirePermission } from '../middleware/requirePermission';
 
 export const productsRouter = Router();
 
@@ -38,6 +43,49 @@ function asStringArray(value: unknown): string[] | undefined {
 function asPositiveInt(value: unknown, fallback: number): number {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback;
+}
+
+/** Внешние ссылки скачиваются на сервер: в БД должны попадать только локальные URL. */
+async function toLocalImageUrl(url: string): Promise<string> {
+  const trimmed = url.trim();
+
+  if (!trimmed) {
+    throw httpError('Ссылка на изображение обязательна');
+  }
+
+  if (isLocalImageUrl(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return importFromUrl(trimmed);
+  }
+
+  throw httpError('Ссылка должна вести на изображение: /uploads/… или http(s)://…');
+}
+
+async function importCommentImages(urls: string[]): Promise<string[]> {
+  const images: string[] = [];
+
+  for (const url of urls) {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    try {
+      images.push(await toLocalImageUrl(trimmed));
+    } catch (error) {
+      // Одна битая ссылка не должна терять весь комментарий (актуально для CSV).
+      console.warn(
+        '[products] изображение комментария пропущено:',
+        trimmed,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
+  return images;
 }
 
 productsRouter.get('/', async (req, res, next) => {
@@ -68,7 +116,7 @@ productsRouter.get('/', async (req, res, next) => {
   }
 });
 
-productsRouter.get('/all', async (_req, res, next) => {
+productsRouter.get('/all', requirePermission('csv'), async (_req, res, next) => {
   try {
     const products = await readAllProducts();
     res.json(products);
@@ -90,7 +138,7 @@ productsRouter.get('/:id', async (req, res, next) => {
   }
 });
 
-productsRouter.post('/export-pdf', async (req, res, next) => {
+productsRouter.post('/export-pdf', requirePermission('exportPdf'), async (req, res, next) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const rawItems = Array.isArray(body.items) ? body.items : [];
@@ -110,7 +158,7 @@ productsRouter.post('/export-pdf', async (req, res, next) => {
   }
 });
 
-productsRouter.post('/', async (req, res, next) => {
+productsRouter.post('/', requirePermission('createProduct'), async (req, res, next) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const product = await createProduct({
@@ -127,7 +175,7 @@ productsRouter.post('/', async (req, res, next) => {
   }
 });
 
-productsRouter.patch('/:id', async (req, res, next) => {
+productsRouter.patch('/:id', requirePermission('editProduct'), async (req, res, next) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const updated = await updateProduct(req.params.id, {
@@ -153,7 +201,7 @@ productsRouter.patch('/:id', async (req, res, next) => {
   }
 });
 
-productsRouter.delete('/:id', async (req, res, next) => {
+productsRouter.delete('/:id', requirePermission('deleteProduct'), async (req, res, next) => {
   try {
     const deleted = await deleteProduct(req.params.id);
 
@@ -168,8 +216,14 @@ productsRouter.delete('/:id', async (req, res, next) => {
   }
 });
 
-productsRouter.post('/:id/comments', async (req, res, next) => {
+productsRouter.post('/:id/comments', requirePermission('manageComments'), async (req, res, next) => {
   try {
+    const author = req.user;
+    if (!author) {
+      res.status(401).json({ message: 'Требуется вход' });
+      return;
+    }
+
     const body = (req.body ?? {}) as Record<string, unknown>;
     const title = asString(body.title)?.trim();
 
@@ -178,11 +232,15 @@ productsRouter.post('/:id/comments', async (req, res, next) => {
       return;
     }
 
-    const updated = await addComment(req.params.id, {
-      title,
-      text: asString(body.text) ?? '',
-      images: asStringArray(body.images),
-    });
+    const updated = await addComment(
+      req.params.id,
+      {
+        title,
+        text: asString(body.text) ?? '',
+        images: await importCommentImages(asStringArray(body.images) ?? []),
+      },
+      { id: author.id, username: author.username },
+    );
 
     if (!updated) {
       res.status(404).json({ message: 'Not found' });
@@ -195,7 +253,50 @@ productsRouter.post('/:id/comments', async (req, res, next) => {
   }
 });
 
-productsRouter.delete('/:id/comments/:commentId', async (req, res, next) => {
+productsRouter.patch('/:id/comments/:commentId', requirePermission('manageComments'), async (req, res, next) => {
+  try {
+    const actor = req.user;
+    if (!actor) {
+      res.status(401).json({ message: 'Требуется вход' });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const title = asString(body.title)?.trim();
+
+    if (!title) {
+      res.status(400).json({ message: 'Заголовок обязателен' });
+      return;
+    }
+
+    const comment = await getComment(req.params.id, req.params.commentId);
+    if (!comment) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+
+    if (actor.role !== 'admin' && comment.authorId !== actor.id) {
+      res.status(403).json({ message: 'Можно редактировать только свой комментарий' });
+      return;
+    }
+
+    const updated = await updateComment(req.params.id, req.params.commentId, {
+      title,
+      text: asString(body.text) ?? '',
+    });
+
+    if (!updated) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+productsRouter.delete('/:id/comments/:commentId', requirePermission('deleteComments'), async (req, res, next) => {
   try {
     const updated = await deleteComment(req.params.id, req.params.commentId);
 
@@ -210,8 +311,25 @@ productsRouter.delete('/:id/comments/:commentId', async (req, res, next) => {
   }
 });
 
-productsRouter.delete('/:id/comments/:commentId/images/:imageId', async (req, res, next) => {
+productsRouter.delete('/:id/comments/:commentId/images/:imageId', requirePermission('manageComments'), async (req, res, next) => {
   try {
+    const actor = req.user;
+    if (!actor) {
+      res.status(401).json({ message: 'Требуется вход' });
+      return;
+    }
+
+    const comment = await getComment(req.params.id, req.params.commentId);
+    if (!comment) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+
+    if (actor.role !== 'admin' && comment.authorId !== actor.id) {
+      res.status(403).json({ message: 'Можно изменять только свой комментарий' });
+      return;
+    }
+
     const updated = await deleteCommentImage(
       req.params.id,
       req.params.commentId,
@@ -229,7 +347,7 @@ productsRouter.delete('/:id/comments/:commentId/images/:imageId', async (req, re
   }
 });
 
-productsRouter.post('/:id/images', async (req, res, next) => {
+productsRouter.post('/:id/images', requirePermission('manageImages'), async (req, res, next) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const url = asString(body.url)?.trim();
@@ -239,7 +357,8 @@ productsRouter.post('/:id/images', async (req, res, next) => {
       return;
     }
 
-    const updated = await addImage(req.params.id, { url });
+    const localUrl = await toLocalImageUrl(url);
+    const updated = await addImage(req.params.id, { url: localUrl });
 
     if (!updated) {
       res.status(404).json({ message: 'Not found' });
@@ -252,7 +371,7 @@ productsRouter.post('/:id/images', async (req, res, next) => {
   }
 });
 
-productsRouter.delete('/:id/images/:imageId', async (req, res, next) => {
+productsRouter.delete('/:id/images/:imageId', requirePermission('manageImages'), async (req, res, next) => {
   try {
     const updated = await deleteImage(req.params.id, req.params.imageId);
 

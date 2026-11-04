@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCan } from '@/entities/session';
 import { useProductStore } from '@/entities/product';
 import { Button } from '@/shared/ui/Button';
 
@@ -8,6 +9,7 @@ interface DeleteProductButtonProps {
 }
 
 export function DeleteProductButton({ productId, onDeleted }: DeleteProductButtonProps) {
+  const canDelete = useCan('deleteProduct');
   const deleteProduct = useProductStore((state) => state.deleteProduct);
   const [deleting, setDeleting] = useState(false);
 
@@ -26,8 +28,10 @@ export function DeleteProductButton({ productId, onDeleted }: DeleteProductButto
   };
 
   return (
-    <Button variant="danger" onClick={handleClick} disabled={deleting}>
-      {deleting ? 'Удаление…' : 'Удалить карточку'}
-    </Button>
+    canDelete ? (
+      <Button variant="danger" onClick={handleClick} disabled={deleting}>
+        {deleting ? 'Удаление…' : 'Удалить карточку'}
+      </Button>
+    ) : null
   );
 }

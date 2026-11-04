@@ -16,6 +16,9 @@ export function normalizeProduct(product: Product): Product {
     tags: product.tags ?? [],
     comments: (product.comments ?? []).map((comment) => ({
       ...comment,
+      authorId: comment.authorId ?? null,
+      authorName: comment.authorName ?? '',
+      updatedAt: comment.updatedAt ?? null,
       images: comment.images ?? [],
     })),
     images: product.images ?? [],

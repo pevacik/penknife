@@ -1,23 +1,12 @@
-import fs from 'node:fs';
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { UPLOADS_DIR } from '../storage';
-
-fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '';
-    cb(null, `${randomUUID()}${ext}`);
-  },
-});
+import { importFromUrl, saveImageBuffer } from '../images';
+import { requirePermission } from '../middleware/requirePermission';
+import { DOWNLOAD_MAX_BYTES } from '../safeFetch';
 
 const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: DOWNLOAD_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -29,11 +18,34 @@ const upload = multer({
 
 export const uploadsRouter = Router();
 
-uploadsRouter.post('/', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    res.status(400).json({ message: 'Файл не загружен' });
-    return;
-  }
+uploadsRouter.post('/', requirePermission('manageImages'), upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ message: 'Файл не загружен' });
+      return;
+    }
 
-  res.status(201).json({ url: `/uploads/${req.file.filename}` });
+    const { url } = await saveImageBuffer(req.file.buffer);
+    res.status(201).json({ url });
+  } catch (error) {
+    next(error);
+  }
 });
+
+uploadsRouter.post('/from-url', requirePermission('manageImages'), async (req, res, next) => {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const url = typeof body.url === 'string' ? body.url.trim() : '';
+
+    if (!url) {
+      res.status(400).json({ message: 'Ссылка на изображение обязательна' });
+      return;
+    }
+
+    const localUrl = await importFromUrl(url);
+    res.status(201).json({ url: localUrl });
+  } catch (error) {
+    next(error);
+  }
+});
+

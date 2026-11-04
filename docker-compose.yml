@@ -5,12 +5,18 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: penknife
-      POSTGRES_PASSWORD: penknife
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-penknife}
       POSTGRES_DB: penknife
     ports:
-      - "5432:5432"
+      # Только loopback: БД доступна Prisma на этой машине, но не из локальной сети.
+      - "127.0.0.1:5432:5432"
     volumes:
       - penknife_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U penknife -d penknife"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   penknife_pgdata:

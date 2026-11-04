@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useProductStore } from '@/entities/product';
+import { useCan } from '@/entities/session';
 import { DeleteProductButton } from '@/features/delete-product';
 import { ProductForm } from '@/features/edit-product';
 import { CommentSection } from '@/features/product-comments';
@@ -10,6 +11,7 @@ import styles from './ProductDetailPage.module.css';
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const canEdit = useCan('editProduct');
   const product = useProductStore((state) => (id ? state.productsById[id] : undefined));
   const getProduct = useProductStore((state) => state.getProduct);
   const [loading, setLoading] = useState(true);
@@ -60,7 +62,7 @@ export function ProductDetailPage() {
 
         <ImageSection key={`images-${product.id}`} product={product} />
 
-        <ProductForm key={`form-${product.id}`} product={product} />
+        <ProductForm key={`form-${product.id}`} product={product} readOnly={!canEdit} />
 
         <CommentSection product={product} />
 

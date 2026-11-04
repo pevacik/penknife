@@ -18,9 +18,10 @@ interface FormValues {
 
 interface ProductFormProps {
   product: Product;
+  readOnly?: boolean;
 }
 
-export function ProductForm({ product }: ProductFormProps) {
+export function ProductForm({ product, readOnly = false }: ProductFormProps) {
   const updateProduct = useProductStore((state) => state.updateProduct);
 
   const [values, setValues] = useState<FormValues>({
@@ -41,6 +42,11 @@ export function ProductForm({ product }: ProductFormProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (readOnly) {
+      return;
+    }
+
     setSaving(true);
     try {
       await updateProduct(product.id, {
@@ -69,6 +75,7 @@ export function ProductForm({ product }: ProductFormProps) {
         <Input
           value={values.title}
           placeholder="Например: Складной нож"
+          disabled={readOnly}
           onChange={(event) => setField('title', event.target.value)}
         />
       </label>
@@ -79,6 +86,7 @@ export function ProductForm({ product }: ProductFormProps) {
           value={values.price === 0 ? '' : String(values.price)}
           placeholder="Например: 1500"
           inputMode="numeric"
+          disabled={readOnly}
           onChange={(event) =>
             setField('price', Number(event.target.value.replace(/\D/g, '')) || 0)
           }
@@ -91,6 +99,7 @@ export function ProductForm({ product }: ProductFormProps) {
           value={values.circulation}
           placeholder="Любое количество"
           inputMode="numeric"
+          disabled={readOnly}
           onChange={(event) => setField('circulation', event.target.value.replace(/\D/g, ''))}
         />
       </label>
@@ -99,6 +108,7 @@ export function ProductForm({ product }: ProductFormProps) {
         <span className={styles.label}>Сделать 50</span>
         <Select
           value={values.make50 ? 'yes' : 'no'}
+          disabled={readOnly}
           onChange={(event) => setField('make50', event.target.value === 'yes')}
         >
           <option value="no">Нет</option>
@@ -110,6 +120,7 @@ export function ProductForm({ product }: ProductFormProps) {
         <span className={styles.label}>Срок производства</span>
         <Select
           value={values.productionCountry}
+          disabled={readOnly}
           onChange={(event) =>
             setField('productionCountry', event.target.value as ProductionCountry)
           }
@@ -127,16 +138,23 @@ export function ProductForm({ product }: ProductFormProps) {
         <Input
           value={values.tags}
           placeholder="Слова через запятую, например: нож, сталь, подарок"
+          disabled={readOnly}
           onChange={(event) => setField('tags', event.target.value)}
         />
       </label>
 
-      <div className={styles.actions}>
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Сохранение…' : 'Сохранить'}
-        </Button>
-        {saved && <span className={styles.saved}>Сохранено</span>}
-      </div>
+      {readOnly ? (
+        <p className={styles.readOnly}>
+          Только просмотр: изменять карточки могут администратор и пользователи.
+        </p>
+      ) : (
+        <div className={styles.actions}>
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Сохранение…' : 'Сохранить'}
+          </Button>
+          {saved && <span className={styles.saved}>Сохранено</span>}
+        </div>
+      )}
     </form>
   );
 }

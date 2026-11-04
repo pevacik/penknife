@@ -9,7 +9,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:import": "tsx scripts/import-json-to-db.ts"
+    "db:import": "tsx scripts/import-json-to-db.ts",
+    "images:variants": "tsx scripts/generate-image-variants.ts",
+    "user:create": "tsx scripts/create-user.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -17,7 +19,8 @@
     "dotenv": "^18.0.5",
     "express": "^4.21.2",
     "multer": "^2.0.2",
-    "pdfkit": "^0.20.2"
+    "pdfkit": "^0.20.2",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

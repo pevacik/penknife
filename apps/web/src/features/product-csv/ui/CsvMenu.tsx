@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
+import { useCan } from '@/entities/session';
 import { useProductStore } from '@/entities/product';
 import type { CreateProductPayload } from '@/entities/product';
 import { productApi } from '@/entities/product/api/productApi';
@@ -10,6 +11,7 @@ import { csvToProducts, productsToCsv } from '../model/converter';
 import styles from './CsvMenu.module.css';
 
 export function CsvMenu() {
+  const canUseCsv = useCan('csv');
   const total = useProductStore((state) => state.total);
   const addProduct = useProductStore((state) => state.addProduct);
   const updateProduct = useProductStore((state) => state.updateProduct);
@@ -41,6 +43,7 @@ export function CsvMenu() {
       const rows = csvToProducts(text);
       let created = 0;
       let updated = 0;
+      let skipped = 0;
 
       for (const row of rows) {
         const payload: CreateProductPayload = {
@@ -60,10 +63,19 @@ export function CsvMenu() {
         } else {
           const createdProduct = await addProduct(payload);
           for (const url of row.images) {
-            await addImage(createdProduct.id, { url });
+            try {
+              await addImage(createdProduct.id, { url });
+            } catch {
+              // Битая ссылка не должна ронять весь импорт.
+              skipped += 1;
+            }
           }
           for (const comment of row.comments) {
-            await addComment(createdProduct.id, comment);
+            try {
+              await addComment(createdProduct.id, comment);
+            } catch {
+              skipped += 1;
+            }
           }
           created += 1;
         }
@@ -71,7 +83,11 @@ export function CsvMenu() {
 
       await loadProducts();
 
-      setMessage(`Импортировано: создано ${created}, обновлено ${updated}`);
+      setMessage(
+        `Импортировано: создано ${created}, обновлено ${updated}${
+          skipped > 0 ? `, пропущено: ${skipped}` : ''
+        }`,
+      );
     } catch {
       setMessage('Не удалось импортировать CSV');
     } finally {
@@ -81,6 +97,10 @@ export function CsvMenu() {
       }
     }
   };
+
+  if (!canUseCsv) {
+    return null;
+  }
 
   return (
     <>

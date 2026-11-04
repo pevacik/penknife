@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCan } from '@/entities/session';
 import { Button } from '@/shared/ui/Button';
 import { useProductStore } from '@/entities/product';
 import styles from './AddProductButton.module.css';
 
 export function AddProductButton() {
+  const canCreate = useCan('createProduct');
   const addProduct = useProductStore((state) => state.addProduct);
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
@@ -24,6 +26,10 @@ export function AddProductButton() {
       setCreating(false);
     }
   };
+
+  if (!canCreate) {
+    return null;
+  }
 
   return (
     <Button onClick={() => void handleClick()} disabled={creating} className={styles.button}>

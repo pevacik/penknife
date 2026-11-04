@@ -109,6 +109,12 @@
   color: var(--color-text-muted);
 }
 
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
 .hidden {
   display: none;
 }

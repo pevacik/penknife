@@ -8,8 +8,11 @@ export interface ProductComment {
   id: string;
   title: string;
   text: string;
+  authorId: string | null;
+  authorName: string;
   images: ProductImage[];
   createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface ProductImage {
@@ -45,6 +48,11 @@ export interface CreateCommentPayload {
   title: string;
   text: string;
   images?: string[];
+}
+
+export interface UpdateCommentPayload {
+  title: string;
+  text: string;
 }
 
 export interface CreateImagePayload {

@@ -1,4 +1,4 @@
-import { httpClient } from '@/shared/api/httpClient';
+import { HttpError, httpClient } from '@/shared/api/httpClient';
 import type {
   CreateCommentPayload,
   CreateImagePayload,
@@ -6,6 +6,7 @@ import type {
   Product,
   ProductListParams,
   ProductListResponse,
+  UpdateCommentPayload,
   UpdateProductPayload,
 } from '../model/types';
 
@@ -28,8 +29,8 @@ export const productApi = {
   },
 
   get(id: string): Promise<Product | null> {
-    return httpClient.get<Product>(`/products/${id}`).catch((error) => {
-      if (error instanceof Error && error.message.includes('404')) {
+    return httpClient.get<Product>(`/products/${id}`).catch((error: unknown) => {
+      if (error instanceof HttpError && error.status === 404) {
         return null;
       }
       throw error;
@@ -54,6 +55,10 @@ export const productApi = {
 
   addComment(id: string, payload: CreateCommentPayload): Promise<Product> {
     return httpClient.post<Product>(`/products/${id}/comments`, payload);
+  },
+
+  updateComment(id: string, commentId: string, payload: UpdateCommentPayload): Promise<Product> {
+    return httpClient.patch<Product>(`/products/${id}/comments/${commentId}`, payload);
   },
 
   deleteComment(id: string, commentId: string): Promise<Product> {

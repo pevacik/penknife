@@ -1,1 +1,1 @@
-export { uploadImage } from '@/shared/api/uploadImage';
+export { importImageFromUrl, uploadImage } from '@/shared/api/uploadImage';

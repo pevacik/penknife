@@ -1,13 +1,14 @@
 import PDFDocument from 'pdfkit';
 import path from 'node:path';
-import { promises as fs } from 'node:fs';
 import { getProductById } from './store/prismaStore';
-import { UPLOADS_DIR } from './storage';
+import { getPdfImageBuffer, localFileNameFromUrl } from './images';
+import { downloadImage } from './safeFetch';
 
 const FONT_PATH = path.resolve(process.cwd(), 'assets', 'fonts', 'NotoSans-Regular.ttf');
 const FONT_SIZE = 12;
-const GAP = 16;
-const COMMENT_AREA = 64;
+const GAP = 12;
+const COMMENT_LINES = 4;
+const IMAGE_ASPECT = 16 / 9;
 
 function isSupportedImage(buffer: Buffer): boolean {
   if (buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
@@ -21,16 +22,14 @@ function isSupportedImage(buffer: Buffer): boolean {
 
 async function loadImageBuffer(url: string): Promise<Buffer | null> {
   try {
-    if (url.startsWith('/uploads/')) {
-      const filename = url.slice('/uploads/'.length);
-      return await fs.readFile(path.join(UPLOADS_DIR, filename));
+    const fileName = localFileNameFromUrl(url);
+    if (fileName) {
+      // Уменьшенный JPEG-вариант: pdfkit не умеет WebP, а оригиналы весят много.
+      return await getPdfImageBuffer(fileName);
     }
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      const response = await fetch(url);
-      if (!response.ok) {
-        return null;
-      }
-      return Buffer.from(await response.arrayBuffer());
+      // Старые внешние URL — через тот же безопасный загрузчик.
+      return await downloadImage(url);
     }
     return null;
   } catch {
@@ -50,9 +49,12 @@ export async function buildListPdf(items: Array<{ id: string; comment: string }>
   doc.font(FONT_PATH);
   doc.fontSize(FONT_SIZE);
 
-  const { left, right, top, bottom } = doc.page.margins;
-  const usableWidth = doc.page.width - left - right;
-  const usableHeight = doc.page.height - top - bottom;
+  const { left, right } = doc.page.margins;
+  const pageWidth = doc.page.width;
+  const contentWidth = pageWidth - left - right;
+  // Рамка 16:9 на всю ширину страницы: картинка вписывается пропорционально,
+  // без кропа и растяжения; при отличающихся пропорциях остаётся «воздух».
+  const frameHeight = pageWidth / IMAGE_ASPECT;
 
   let hasContent = false;
 
@@ -61,17 +63,20 @@ export async function buildListPdf(items: Array<{ id: string; comment: string }>
       doc.addPage();
     }
 
-    const imageHeight = comment ? usableHeight - COMMENT_AREA : usableHeight;
-
-    doc.image(buffer, left, top, {
-      fit: [usableWidth, imageHeight],
+    doc.image(buffer, 0, 0, {
+      fit: [pageWidth, frameHeight],
       align: 'center',
       valign: 'center',
     });
 
     if (comment) {
-      doc.text(comment, left, top + imageHeight + GAP, {
-        width: usableWidth,
+      doc.fontSize(FONT_SIZE);
+      const lineHeight = doc.currentLineHeight();
+      doc.text(comment, left, frameHeight + GAP, {
+        width: contentWidth,
+        height: lineHeight * COMMENT_LINES + 1,
+        ellipsis: true,
+        lineGap: 0,
         align: 'left',
       });
     }

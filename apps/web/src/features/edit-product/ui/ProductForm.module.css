@@ -27,3 +27,9 @@
   color: #15803d;
 }
 
+.readOnly {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
