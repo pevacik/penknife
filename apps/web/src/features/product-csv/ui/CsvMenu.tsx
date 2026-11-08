@@ -7,6 +7,7 @@ import { productApi } from '@/entities/product/api/productApi';
 import { Button } from '@/shared/ui/Button';
 import { Modal } from '@/shared/ui/Modal';
 import { downloadTextFile } from '@/shared/lib/download';
+import { showNoPermissionToast } from '@/shared/lib/toast';
 import { csvToProducts, productsToCsv } from '../model/converter';
 import styles from './CsvMenu.module.css';
 
@@ -98,13 +99,17 @@ export function CsvMenu() {
     }
   };
 
-  if (!canUseCsv) {
-    return null;
-  }
+  const handleOpen = () => {
+    if (!canUseCsv) {
+      showNoPermissionToast();
+      return;
+    }
+    setOpen(true);
+  };
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className={styles.trigger}>
+      <Button onClick={handleOpen} inactive={!canUseCsv} className={styles.trigger}>
         CSV
       </Button>
 

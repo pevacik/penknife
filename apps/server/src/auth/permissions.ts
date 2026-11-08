@@ -6,11 +6,13 @@ export const PERMISSIONS = [
   'editProduct',
   'deleteProduct',
   'manageImages',
+  'deleteImages',
   'manageComments',
   'deleteComments',
   'csv',
   'exportPdf',
   'manageUsers',
+  'viewAudit',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -18,8 +20,12 @@ export type Permission = (typeof PERMISSIONS)[number];
 /** Права, которые нельзя переопределять персонально (структурные). */
 export const STRUCTURAL_PERMISSIONS: Permission[] = [
   'viewProducts',
+  'deleteProduct',
+  'deleteImages',
   'deleteComments',
+  'csv',
   'manageUsers',
+  'viewAudit',
 ];
 
 export const OVERRIDABLE_PERMISSIONS: Permission[] = PERMISSIONS.filter(
@@ -36,7 +42,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'manageComments',
     'exportPdf',
   ],
-  viewer: ['viewProducts', 'exportPdf'],
+  viewer: ['viewProducts'],
 };
 
 export function isPermission(value: string): value is Permission {
@@ -73,9 +79,12 @@ export function getEffectivePermissions(
 
   result.add('viewProducts');
   if (role !== 'admin') {
+    // Структурные административные права нельзя включить персонально.
     result.delete('manageUsers');
+    result.delete('viewAudit');
   } else {
     result.add('manageUsers');
+    result.add('viewAudit');
   }
 
   return PERMISSIONS.filter((permission) => result.has(permission));

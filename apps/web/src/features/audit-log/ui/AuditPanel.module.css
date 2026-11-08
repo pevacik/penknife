@@ -1,0 +1,198 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  max-width: 760px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.cardValue {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.cardLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.byUser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.byUserTitle {
+  color: var(--color-text-muted);
+}
+
+.chip {
+  padding: 2px 8px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.filters > :first-child {
+  min-width: 170px;
+}
+
+.filters > :nth-child(2) {
+  flex: 1;
+  min-width: 220px;
+}
+
+.dateField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dateLabel {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.actor {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.entity {
+  display: block;
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
+.entityId {
+  display: block;
+  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.summary {
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.details {
+  max-width: 420px;
+  max-height: 220px;
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow: auto;
+  font-size: 11px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.empty,
+.state {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pageInfo {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}

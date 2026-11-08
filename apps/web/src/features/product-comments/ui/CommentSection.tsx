@@ -9,7 +9,8 @@ import { ImageLightbox } from '@/shared/ui/ImageLightbox';
 import { readImageFilesFromClipboard } from '@/shared/lib/clipboard';
 import { getImageUrl } from '@/shared/lib/imageUrl';
 import { uploadImage } from '@/shared/api/uploadImage';
-import { useAuthStore, useCan } from '@/entities/session';
+import { useCan } from '@/entities/session';
+import { showNoPermissionToast } from '@/shared/lib/toast';
 import styles from './CommentSection.module.css';
 
 interface CommentSectionProps {
@@ -28,7 +29,7 @@ export function CommentSection({ product }: CommentSectionProps) {
   const deleteCommentImage = useProductStore((state) => state.deleteCommentImage);
   const canManage = useCan('manageComments');
   const canDeleteComments = useCan('deleteComments');
-  const currentUser = useAuthStore((state) => state.user);
+  const canDeleteImages = useCan('deleteImages');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
@@ -44,12 +45,11 @@ export function CommentSection({ product }: CommentSectionProps) {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  const canEditComment = (comment: Product['comments'][number]): boolean =>
-    canManage &&
-    (currentUser?.role === 'admin' ||
-      (comment.authorId !== null && comment.authorId === currentUser?.id));
-
   const startEdit = (comment: Product['comments'][number]) => {
+    if (!canManage) {
+      showNoPermissionToast();
+      return;
+    }
     setEditingId(comment.id);
     setEditTitle(comment.title);
     setEditText(comment.text);
@@ -62,6 +62,10 @@ export function CommentSection({ product }: CommentSectionProps) {
   };
 
   const handleSaveEdit = async (commentId: string) => {
+    if (!canManage) {
+      showNoPermissionToast();
+      return;
+    }
     if (!editTitle.trim() || savingEdit) {
       return;
     }
@@ -84,6 +88,10 @@ export function CommentSection({ product }: CommentSectionProps) {
   };
 
   const handleFiles = async (files: File[]) => {
+    if (!canManage) {
+      showNoPermissionToast();
+      return;
+    }
     if (files.length === 0) {
       return;
     }
@@ -125,6 +133,10 @@ export function CommentSection({ product }: CommentSectionProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canManage) {
+      showNoPermissionToast();
+      return;
+    }
     if (!title.trim()) {
       return;
     }
@@ -150,16 +162,17 @@ export function CommentSection({ product }: CommentSectionProps) {
     <section className={styles.section}>
       <h2 className={styles.heading}>Комментарии</h2>
 
-      {canManage && (
-        <form className={styles.form} onSubmit={handleSubmit} onPaste={handlePaste}>
+      <form className={styles.form} onSubmit={handleSubmit} onPaste={handlePaste}>
         <Input
           value={title}
           placeholder="Заголовок"
+          disabled={!canManage}
           onChange={(event) => setTitle(event.target.value)}
         />
         <Textarea
           value={text}
           placeholder="Комментарий"
+          disabled={!canManage}
           onChange={(event) => setText(event.target.value)}
         />
 
@@ -188,13 +201,24 @@ export function CommentSection({ product }: CommentSectionProps) {
         )}
 
         <div className={styles.formActions}>
-          <Button type="submit" disabled={saving || !title.trim()}>
+          <Button
+            type="submit"
+            inactive={!canManage}
+            disabled={saving || (canManage && !title.trim())}
+          >
             {saving ? 'Сохранение…' : 'Сохранить комментарий'}
           </Button>
           <Button
             type="button"
             variant="ghost"
-            onClick={() => fileInputRef.current?.click()}
+            inactive={!canManage}
+            onClick={() => {
+              if (!canManage) {
+                showNoPermissionToast();
+                return;
+              }
+              fileInputRef.current?.click();
+            }}
             disabled={uploading}
           >
             {uploading ? 'Загрузка…' : 'Прикрепить изображение'}
@@ -202,7 +226,9 @@ export function CommentSection({ product }: CommentSectionProps) {
         </div>
         {error && <p className={styles.error}>{error}</p>}
         <p className={styles.hint}>
-          Комментарий будет подписан вашим именем. Можно вставить изображение из буфера обмена (Ctrl+V)
+          {canManage
+            ? 'Комментарий будет подписан вашим именем. Можно вставить изображение из буфера обмена (Ctrl+V)'
+            : 'Только просмотр: добавлять и редактировать комментарии могут администратор и пользователи.'}
         </p>
 
         <input
@@ -213,8 +239,7 @@ export function CommentSection({ product }: CommentSectionProps) {
           className={styles.hidden}
           onChange={handleFileChange}
         />
-        </form>
-      )}
+      </form>
 
       {product.comments.length === 0 ? (
         <p className={styles.empty}>Комментариев пока нет.</p>
@@ -256,24 +281,28 @@ export function CommentSection({ product }: CommentSectionProps) {
                     <div className={styles.itemHeader}>
                       <h3 className={styles.itemTitle}>{comment.title}</h3>
                       <div className={styles.commentActions}>
-                        {canEditComment(comment) && (
-                          <button
-                            type="button"
-                            className={styles.edit}
-                            onClick={() => startEdit(comment)}
-                          >
-                            Редактировать
-                          </button>
-                        )}
-                        {canDeleteComments && (
-                          <button
-                            type="button"
-                            className={styles.delete}
-                            onClick={() => void deleteComment(product.id, comment.id)}
-                          >
-                            Удалить
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className={`${styles.edit} ${canManage ? '' : styles.actionInactive}`}
+                          aria-disabled={!canManage || undefined}
+                          onClick={() => startEdit(comment)}
+                        >
+                          Редактировать
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.delete} ${canDeleteComments ? '' : styles.actionInactive}`}
+                          aria-disabled={!canDeleteComments || undefined}
+                          onClick={() => {
+                            if (!canDeleteComments) {
+                              showNoPermissionToast();
+                              return;
+                            }
+                            void deleteComment(product.id, comment.id);
+                          }}
+                        >
+                          Удалить
+                        </button>
                       </div>
                     </div>
                     {comment.text && <p className={styles.itemText}>{comment.text}</p>}
@@ -298,16 +327,21 @@ export function CommentSection({ product }: CommentSectionProps) {
                             decoding="async"
                           />
                         </button>
-                        {canEditComment(comment) && (
-                          <button
-                            type="button"
-                            className={styles.imageRemove}
-                            aria-label="Удалить изображение"
-                            onClick={() => void deleteCommentImage(product.id, comment.id, image.id)}
-                          >
-                            ×
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className={`${styles.imageRemove} ${canDeleteImages ? '' : styles.actionInactive}`}
+                          aria-label="Удалить изображение"
+                          aria-disabled={!canDeleteImages || undefined}
+                          onClick={() => {
+                            if (!canDeleteImages) {
+                              showNoPermissionToast();
+                              return;
+                            }
+                            void deleteCommentImage(product.id, comment.id, image.id);
+                          }}
+                        >
+                          ×
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -317,7 +351,10 @@ export function CommentSection({ product }: CommentSectionProps) {
                   {comment.authorName || 'Автор не указан'} ·{' '}
                   {new Date(comment.createdAt).toLocaleString('ru-RU')}
                   {comment.updatedAt && (
-                    <> · изменён {new Date(comment.updatedAt).toLocaleString('ru-RU')}</>
+                    <>
+                      {' '}· изменён {comment.updatedByName || 'неизвестно'}{' '}
+                      {new Date(comment.updatedAt).toLocaleString('ru-RU')}
+                    </>
                   )}
                 </span>
               </li>

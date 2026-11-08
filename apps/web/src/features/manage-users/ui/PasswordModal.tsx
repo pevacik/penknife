@@ -47,7 +47,7 @@ export function PasswordModal({ user, onClose }: PasswordModalProps) {
 
   return (
     <Modal
-      title={`Новый пароль: ${user.username}`}
+      title={`Смена пароля: ${user.username}`}
       onClose={onClose}
       actions={
         <>

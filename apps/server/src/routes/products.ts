@@ -17,6 +17,8 @@ import {
 import { buildListPdf } from '../pdf';
 import { httpError } from '../httpError';
 import { importFromUrl, isLocalImageUrl } from '../images';
+import { recordAudit } from '../audit/record';
+import type { Product } from '../types';
 import { requirePermission } from '../middleware/requirePermission';
 
 export const productsRouter = Router();
@@ -86,6 +88,17 @@ async function importCommentImages(urls: string[]): Promise<string[]> {
   }
 
   return images;
+}
+
+function productSnapshot(product: Product) {
+  return {
+    title: product.title,
+    price: product.price,
+    circulation: product.circulation,
+    make50: product.make50,
+    productionCountry: product.productionCountry,
+    tags: product.tags,
+  };
 }
 
 productsRouter.get('/', async (req, res, next) => {
@@ -161,14 +174,27 @@ productsRouter.post('/export-pdf', requirePermission('exportPdf'), async (req, r
 productsRouter.post('/', requirePermission('createProduct'), async (req, res, next) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const product = await createProduct({
-      title: asString(body.title),
-      price: asNumber(body.price),
-      circulation: asString(body.circulation),
-      make50: asBoolean(body.make50),
-      productionCountry: body.productionCountry === 'china' ? 'china' : 'russia',
-      tags: asStringArray(body.tags),
+    const product = await createProduct(
+      {
+        title: asString(body.title),
+        price: asNumber(body.price),
+        circulation: asString(body.circulation),
+        make50: asBoolean(body.make50),
+        productionCountry: body.productionCountry === 'china' ? 'china' : 'russia',
+        tags: asStringArray(body.tags),
+      },
+      req.user,
+    );
+
+    await recordAudit(req, {
+      action: 'product.create',
+      entityType: 'product',
+      entityId: product.id,
+      productId: product.id,
+      title: product.title,
+      details: { price: product.price, productionCountry: product.productionCountry },
     });
+
     res.status(201).json(product);
   } catch (err) {
     next(err);
@@ -177,23 +203,42 @@ productsRouter.post('/', requirePermission('createProduct'), async (req, res, ne
 
 productsRouter.patch('/:id', requirePermission('editProduct'), async (req, res, next) => {
   try {
+    const before = await getProductById(req.params.id);
+    if (!before) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const updated = await updateProduct(req.params.id, {
-      title: asString(body.title),
-      price: asNumber(body.price),
-      circulation: asString(body.circulation),
-      make50: asBoolean(body.make50),
-      productionCountry:
-        body.productionCountry === 'china' || body.productionCountry === 'russia'
-          ? body.productionCountry
-          : undefined,
-      tags: asStringArray(body.tags),
-    });
+    const updated = await updateProduct(
+      req.params.id,
+      {
+        title: asString(body.title),
+        price: asNumber(body.price),
+        circulation: asString(body.circulation),
+        make50: asBoolean(body.make50),
+        productionCountry:
+          body.productionCountry === 'china' || body.productionCountry === 'russia'
+            ? body.productionCountry
+            : undefined,
+        tags: asStringArray(body.tags),
+      },
+      req.user,
+    );
 
     if (!updated) {
       res.status(404).json({ message: 'Not found' });
       return;
     }
+
+    await recordAudit(req, {
+      action: 'product.update',
+      entityType: 'product',
+      entityId: updated.id,
+      productId: updated.id,
+      title: updated.title,
+      details: { before: productSnapshot(before), after: productSnapshot(updated) },
+    });
 
     res.json(updated);
   } catch (err) {
@@ -203,12 +248,30 @@ productsRouter.patch('/:id', requirePermission('editProduct'), async (req, res, 
 
 productsRouter.delete('/:id', requirePermission('deleteProduct'), async (req, res, next) => {
   try {
-    const deleted = await deleteProduct(req.params.id);
+    const before = await getProductById(req.params.id);
+    if (!before) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
 
+    const deleted = await deleteProduct(req.params.id);
     if (!deleted) {
       res.status(404).json({ message: 'Not found' });
       return;
     }
+
+    await recordAudit(req, {
+      action: 'product.delete',
+      entityType: 'product',
+      entityId: before.id,
+      productId: before.id,
+      title: before.title,
+      details: {
+        snapshot: productSnapshot(before),
+        images: before.images.length,
+        comments: before.comments.length,
+      },
+    });
 
     res.status(204).end();
   } catch (err) {
@@ -232,7 +295,7 @@ productsRouter.post('/:id/comments', requirePermission('manageComments'), async 
       return;
     }
 
-    const updated = await addComment(
+    const result = await addComment(
       req.params.id,
       {
         title,
@@ -242,12 +305,21 @@ productsRouter.post('/:id/comments', requirePermission('manageComments'), async 
       { id: author.id, username: author.username },
     );
 
-    if (!updated) {
+    if (!result) {
       res.status(404).json({ message: 'Not found' });
       return;
     }
 
-    res.status(201).json(updated);
+    await recordAudit(req, {
+      action: 'comment.create',
+      entityType: 'comment',
+      entityId: result.commentId,
+      productId: req.params.id,
+      title,
+      details: { title, text: asString(body.text) ?? '' },
+    });
+
+    res.status(201).json(result.product);
   } catch (err) {
     next(err);
   }
@@ -275,20 +347,32 @@ productsRouter.patch('/:id/comments/:commentId', requirePermission('manageCommen
       return;
     }
 
-    if (actor.role !== 'admin' && comment.authorId !== actor.id) {
-      res.status(403).json({ message: 'Можно редактировать только свой комментарий' });
-      return;
-    }
-
-    const updated = await updateComment(req.params.id, req.params.commentId, {
-      title,
-      text: asString(body.text) ?? '',
-    });
+    const updated = await updateComment(
+      req.params.id,
+      req.params.commentId,
+      {
+        title,
+        text: asString(body.text) ?? '',
+      },
+      actor,
+    );
 
     if (!updated) {
       res.status(404).json({ message: 'Not found' });
       return;
     }
+
+    await recordAudit(req, {
+      action: 'comment.update',
+      entityType: 'comment',
+      entityId: comment.id,
+      productId: req.params.id,
+      title,
+      details: {
+        before: { title: comment.title, text: comment.text },
+        after: { title, text: asString(body.text) ?? '' },
+      },
+    });
 
     res.json(updated);
   } catch (err) {
@@ -298,6 +382,12 @@ productsRouter.patch('/:id/comments/:commentId', requirePermission('manageCommen
 
 productsRouter.delete('/:id/comments/:commentId', requirePermission('deleteComments'), async (req, res, next) => {
   try {
+    const comment = await getComment(req.params.id, req.params.commentId);
+    if (!comment) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+
     const updated = await deleteComment(req.params.id, req.params.commentId);
 
     if (!updated) {
@@ -305,28 +395,28 @@ productsRouter.delete('/:id/comments/:commentId', requirePermission('deleteComme
       return;
     }
 
+    await recordAudit(req, {
+      action: 'comment.delete',
+      entityType: 'comment',
+      entityId: comment.id,
+      productId: req.params.id,
+      title: comment.title,
+      details: {
+        snapshot: { title: comment.title, text: comment.text, author: comment.authorName },
+      },
+    });
+
     res.json(updated);
   } catch (err) {
     next(err);
   }
 });
 
-productsRouter.delete('/:id/comments/:commentId/images/:imageId', requirePermission('manageComments'), async (req, res, next) => {
+productsRouter.delete('/:id/comments/:commentId/images/:imageId', requirePermission('deleteImages'), async (req, res, next) => {
   try {
-    const actor = req.user;
-    if (!actor) {
-      res.status(401).json({ message: 'Требуется вход' });
-      return;
-    }
-
     const comment = await getComment(req.params.id, req.params.commentId);
     if (!comment) {
       res.status(404).json({ message: 'Not found' });
-      return;
-    }
-
-    if (actor.role !== 'admin' && comment.authorId !== actor.id) {
-      res.status(403).json({ message: 'Можно изменять только свой комментарий' });
       return;
     }
 
@@ -340,6 +430,15 @@ productsRouter.delete('/:id/comments/:commentId/images/:imageId', requirePermiss
       res.status(404).json({ message: 'Not found' });
       return;
     }
+
+    await recordAudit(req, {
+      action: 'comment.image.delete',
+      entityType: 'image',
+      entityId: req.params.imageId,
+      productId: req.params.id,
+      title: comment.title,
+      details: { commentId: comment.id, imageId: req.params.imageId },
+    });
 
     res.json(updated);
   } catch (err) {
@@ -365,13 +464,21 @@ productsRouter.post('/:id/images', requirePermission('manageImages'), async (req
       return;
     }
 
+    await recordAudit(req, {
+      action: 'product.image.add',
+      entityType: 'image',
+      productId: req.params.id,
+      title: updated.title,
+      details: { url: localUrl },
+    });
+
     res.status(201).json(updated);
   } catch (err) {
     next(err);
   }
 });
 
-productsRouter.delete('/:id/images/:imageId', requirePermission('manageImages'), async (req, res, next) => {
+productsRouter.delete('/:id/images/:imageId', requirePermission('deleteImages'), async (req, res, next) => {
   try {
     const updated = await deleteImage(req.params.id, req.params.imageId);
 
@@ -379,6 +486,15 @@ productsRouter.delete('/:id/images/:imageId', requirePermission('manageImages'),
       res.status(404).json({ message: 'Not found' });
       return;
     }
+
+    await recordAudit(req, {
+      action: 'product.image.delete',
+      entityType: 'image',
+      entityId: req.params.imageId,
+      productId: req.params.id,
+      title: updated.title,
+      details: { imageId: req.params.imageId },
+    });
 
     res.json(updated);
   } catch (err) {

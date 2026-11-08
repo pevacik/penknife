@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 function asNumber(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -20,6 +22,12 @@ function parseCookieSecure(value: string | undefined): boolean {
 
 export const COOKIE_SECURE = parseCookieSecure(process.env.COOKIE_SECURE);
 export const TRUST_PROXY = Math.max(0, asNumber(process.env.TRUST_PROXY, 0));
+
+/**
+ * Ключ для обратимого шифрования паролей (показ пароля в админ-панели).
+ * Любая длинная случайная строка. Если не задан — показ пароля отключён.
+ */
+export const PASSWORD_ENCRYPTION_KEY = process.env.PASSWORD_ENCRYPTION_KEY ?? '';
 
 export const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
   .split(',')

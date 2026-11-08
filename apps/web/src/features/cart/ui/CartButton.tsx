@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useCartStore } from '../model/store';
 import { productApi } from '@/entities/product/api/productApi';
+import { useCan } from '@/entities/session';
 import { downloadBlob } from '@/shared/lib/download';
+import { showNoPermissionToast } from '@/shared/lib/toast';
 import { Button } from '@/shared/ui/Button';
 import { Modal } from '@/shared/ui/Modal';
 import { CartIcon } from './CartIcon';
@@ -9,6 +11,7 @@ import { getImageUrl } from '@/shared/lib/imageUrl';
 import styles from './CartButton.module.css';
 
 export function CartButton() {
+  const canExport = useCan('exportPdf');
   const items = useCartStore((state) => state.items);
   const remove = useCartStore((state) => state.remove);
   const setComment = useCartStore((state) => state.setComment);
@@ -17,6 +20,10 @@ export function CartButton() {
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
+    if (!canExport) {
+      showNoPermissionToast();
+      return;
+    }
     if (items.length === 0 || downloading) {
       return;
     }
@@ -55,6 +62,7 @@ export function CartButton() {
               className={styles.download}
               onClick={() => void handleDownload()}
               disabled={items.length === 0 || downloading}
+              inactive={!canExport}
             >
               {downloading ? 'Генерация…' : 'Скачать список'}
             </Button>

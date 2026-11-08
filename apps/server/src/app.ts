@@ -11,6 +11,7 @@ import { apiRateLimit } from './middleware/rateLimit';
 import { requireAuth } from './middleware/requireAuth';
 import { securityHeaders } from './middleware/securityHeaders';
 import { authRouter } from './routes/auth';
+import { auditRouter } from './routes/audit';
 import { mediaRouter } from './routes/media';
 import { productsRouter } from './routes/products';
 import { uploadsRouter } from './routes/uploads';
@@ -75,6 +76,7 @@ export function createApp() {
   app.use('/api/products', productsRouter);
   app.use('/api/uploads', uploadsRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/audit', auditRouter);
 
   // Картинки закрыты тем же входом; кэш — приватный, только в браузере пользователя.
   app.use('/media', requireAuth, mediaRouter);

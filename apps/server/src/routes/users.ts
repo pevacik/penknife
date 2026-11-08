@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { hashPassword } from '../auth/password';
+import { decryptPassword, encryptPassword, isPasswordRevealEnabled } from '../auth/passwordVault';
 import { isOverridablePermission, isPermission } from '../auth/permissions';
 import { ROLES, isRole } from '../auth/roles';
 import type { Role } from '../auth/roles';
@@ -8,6 +9,7 @@ import { deleteUserSessions, toAuthUser } from '../auth/session';
 import { prisma } from '../db';
 import { httpError } from '../httpError';
 import { requirePermission } from '../middleware/requirePermission';
+import { recordAudit } from '../audit/record';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,32}$/;
 const MIN_PASSWORD_LENGTH = 12;
@@ -168,11 +170,13 @@ usersRouter.post('/', async (req, res, next) => {
     const granted = readPermissionList(body, 'grantedPermissions') ?? [];
     const revoked = readPermissionList(body, 'revokedPermissions') ?? [];
     const passwordHash = await hashPassword(password);
+    const passwordEncrypted = encryptPassword(password);
 
     const user = await prisma.user.create({
       data: {
         username,
         passwordHash,
+        passwordEncrypted,
         role,
         passwordChangedAt: new Date(),
         passwordChangedById: req.user?.id ?? null,
@@ -183,12 +187,58 @@ usersRouter.post('/', async (req, res, next) => {
       },
     });
 
+    await recordAudit(req, {
+      action: 'user.create',
+      entityType: 'user',
+      entityId: user.id,
+      title: user.username,
+      details: {
+        role: user.role,
+        grantedPermissions: user.grantedPermissions,
+        revokedPermissions: user.revokedPermissions,
+      },
+    });
+
     res.status(201).json({ user: serializeUser(user) });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       next(httpError('Пользователь с таким логином уже существует', 409));
       return;
     }
+    next(error);
+  }
+});
+
+usersRouter.get('/:id/password', async (req, res, next) => {
+  try {
+    const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+
+    if (!target) {
+      throw httpError('Пользователь не найден', 404);
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+
+    const password = decryptPassword(target.passwordEncrypted);
+    if (!password) {
+      res.json({
+        password: null,
+        message: isPasswordRevealEnabled()
+          ? 'Пароль недоступен: он был задан до включения отображения. Смените пароль.'
+          : 'Показ паролей не настроен: задайте PASSWORD_ENCRYPTION_KEY на сервере.',
+      });
+      return;
+    }
+
+    await recordAudit(req, {
+      action: 'user.password_view',
+      entityType: 'user',
+      entityId: target.id,
+      title: target.username,
+    });
+
+    res.json({ password });
+  } catch (error) {
     next(error);
   }
 });
@@ -229,6 +279,7 @@ usersRouter.patch('/:id', async (req, res, next) => {
 
     if (password) {
       data.passwordHash = await hashPassword(password);
+      data.passwordEncrypted = encryptPassword(password);
       data.passwordChangedAt = new Date();
       data.passwordChangedById = req.user?.id ?? null;
       data.passwordChangedByName = req.user?.username ?? null;
@@ -240,6 +291,25 @@ usersRouter.patch('/:id', async (req, res, next) => {
     if (roleChanged || password) {
       await deleteUserSessions(target.id);
     }
+
+    await recordAudit(req, {
+      action: 'user.update',
+      entityType: 'user',
+      entityId: target.id,
+      title: target.username,
+      details: {
+        role: { before: target.role, after: updated.role },
+        grantedPermissions: {
+          before: target.grantedPermissions,
+          after: updated.grantedPermissions,
+        },
+        revokedPermissions: {
+          before: target.revokedPermissions,
+          after: updated.revokedPermissions,
+        },
+        passwordChanged: Boolean(password),
+      },
+    });
 
     res.json({ user: serializeUser(updated) });
   } catch (error) {
@@ -262,6 +332,15 @@ usersRouter.delete('/:id', async (req, res, next) => {
     }
 
     await prisma.user.delete({ where: { id: target.id } });
+
+    await recordAudit(req, {
+      action: 'user.delete',
+      entityType: 'user',
+      entityId: target.id,
+      title: target.username,
+      details: { role: target.role },
+    });
+
     res.status(204).end();
   } catch (error) {
     next(error);
@@ -277,6 +356,14 @@ usersRouter.post('/:id/logout', async (req, res, next) => {
     }
 
     await deleteUserSessions(target.id);
+
+    await recordAudit(req, {
+      action: 'user.logout',
+      entityType: 'user',
+      entityId: target.id,
+      title: target.username,
+    });
+
     res.status(204).end();
   } catch (error) {
     next(error);

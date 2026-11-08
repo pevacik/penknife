@@ -10,6 +10,7 @@ interface FilterState {
   setCirculation: (value: string) => void;
   setMaxBudget: (value: string) => void;
   setMake50: (value: Make50Filter) => void;
+  reset: () => void;
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
@@ -21,4 +22,11 @@ export const useFilterStore = create<FilterState>((set) => ({
   setCirculation: (circulation) => set({ circulation }),
   setMaxBudget: (maxBudget) => set({ maxBudget }),
   setMake50: (make50) => set({ make50 }),
+  reset: () =>
+    set({
+      country: 'all',
+      circulation: '',
+      maxBudget: '',
+      make50: 'all',
+    }),
 }));

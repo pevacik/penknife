@@ -10,6 +10,8 @@ export interface ProductComment {
   text: string;
   authorId: string | null;
   authorName: string;
+  updatedById: string | null;
+  updatedByName: string | null;
   images: ProductImage[];
   createdAt: string;
   updatedAt: string | null;
@@ -28,9 +30,14 @@ export interface Product {
   make50: boolean;
   productionCountry: ProductionCountry;
   tags: string[];
+  createdById: string | null;
+  createdByName: string | null;
+  updatedById: string | null;
+  updatedByName: string | null;
   comments: ProductComment[];
   images: ProductImage[];
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateProductPayload {

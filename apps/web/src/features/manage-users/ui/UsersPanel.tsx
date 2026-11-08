@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/Button';
 import type { ManagedUser } from '../api';
 import { useUsersStore } from '../model/store';
 import { PasswordModal } from './PasswordModal';
+import { PasswordRevealModal } from './PasswordRevealModal';
 import { PermissionsModal } from './PermissionsModal';
 import { UserFormModal } from './UserFormModal';
 import styles from './ManageUsers.module.css';
@@ -19,6 +20,7 @@ export function UsersPanel() {
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
+  const [passwordViewFor, setPasswordViewFor] = useState<ManagedUser | null>(null);
   const [passwordFor, setPasswordFor] = useState<ManagedUser | null>(null);
 
   useEffect(() => {
@@ -96,10 +98,17 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={styles.action}
+                          onClick={() => setPasswordViewFor(user)}
+                        >
+                          Пароль
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.action}
                           disabled={isSelf}
                           onClick={() => setPasswordFor(user)}
                         >
-                          Пароль
+                          Смена пароля
                         </button>
                         <button
                           type="button"
@@ -129,6 +138,9 @@ export function UsersPanel() {
 
       {creating && <UserFormModal onClose={() => setCreating(false)} />}
       {editing && <PermissionsModal user={editing} onClose={() => setEditing(null)} />}
+      {passwordViewFor && (
+        <PasswordRevealModal user={passwordViewFor} onClose={() => setPasswordViewFor(null)} />
+      )}
       {passwordFor && <PasswordModal user={passwordFor} onClose={() => setPasswordFor(null)} />}
     </section>
   );

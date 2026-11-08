@@ -41,6 +41,10 @@ export const usersApi = {
     return httpClient.patch<{ user: ManagedUser }>(`/users/${id}`, payload);
   },
 
+  getPassword(id: string): Promise<{ password: string | null; message?: string }> {
+    return httpClient.get<{ password: string | null; message?: string }>(`/users/${id}/password`);
+  },
+
   remove(id: string): Promise<void> {
     return httpClient.delete<void>(`/users/${id}`);
   },

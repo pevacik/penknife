@@ -12,13 +12,28 @@ const variantClass: Record<ButtonVariant, string> = {
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: ButtonVariant;
+  /** Кнопка видима, но действие недоступно по правам. */
+  inactive?: boolean;
 }
 
-export function Button({ children, className, variant = 'primary', ...rest }: ButtonProps) {
-  const classes = [styles.button, variantClass[variant], className].filter(Boolean).join(' ');
+export function Button({
+  children,
+  className,
+  variant = 'primary',
+  inactive = false,
+  ...rest
+}: ButtonProps) {
+  const classes = [styles.button, variantClass[variant], className, inactive ? styles.inactive : null]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <button type="button" className={classes} {...rest}>
+    <button
+      type="button"
+      className={classes}
+      aria-disabled={inactive || undefined}
+      {...rest}
+    >
       {children}
     </button>
   );

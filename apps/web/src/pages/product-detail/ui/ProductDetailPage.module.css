@@ -23,6 +23,31 @@
   color: var(--color-text);
 }
 
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.meta strong {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.metaLink {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.metaLink:hover {
+  color: var(--color-text);
+}
+
 .danger {
   display: flex;
   padding-top: 24px;

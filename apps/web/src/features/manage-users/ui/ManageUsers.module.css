@@ -215,3 +215,15 @@
   background-color: var(--color-bg);
   border-radius: var(--radius-md);
 }
+
+.passwordValue {
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 16px;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  user-select: all;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}

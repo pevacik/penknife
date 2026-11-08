@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCan } from '@/entities/session';
 import { Button } from '@/shared/ui/Button';
 import { useProductStore } from '@/entities/product';
+import { showNoPermissionToast } from '@/shared/lib/toast';
 import styles from './AddProductButton.module.css';
 
 export function AddProductButton() {
@@ -12,6 +13,10 @@ export function AddProductButton() {
   const [creating, setCreating] = useState(false);
 
   const handleClick = async () => {
+    if (!canCreate) {
+      showNoPermissionToast();
+      return;
+    }
     if (creating) {
       return;
     }
@@ -27,12 +32,13 @@ export function AddProductButton() {
     }
   };
 
-  if (!canCreate) {
-    return null;
-  }
-
   return (
-    <Button onClick={() => void handleClick()} disabled={creating} className={styles.button}>
+    <Button
+      onClick={() => void handleClick()}
+      disabled={creating}
+      inactive={!canCreate}
+      className={styles.button}
+    >
       <span className={styles.plus} aria-hidden="true">
         +
       </span>

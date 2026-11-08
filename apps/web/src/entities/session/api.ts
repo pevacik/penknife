@@ -8,11 +8,13 @@ export type Permission =
   | 'editProduct'
   | 'deleteProduct'
   | 'manageImages'
+  | 'deleteImages'
   | 'manageComments'
   | 'deleteComments'
   | 'csv'
   | 'exportPdf'
-  | 'manageUsers';
+  | 'manageUsers'
+  | 'viewAudit';
 
 export interface AuthUser {
   id: string;
@@ -30,8 +32,8 @@ export const authApi = {
     return httpClient.post<void>('/auth/logout');
   },
 
-  changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    return httpClient.post<void>('/auth/password', { currentPassword, newPassword });
+  changePassword(newPassword: string): Promise<void> {
+    return httpClient.post<void>('/auth/password', { newPassword });
   },
 
   me(): Promise<{ user: AuthUser }> {

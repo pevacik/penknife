@@ -15,15 +15,41 @@ model Product {
   make50            Boolean        @default(false)
   productionCountry String         @default("russia")
   tags              String[]       @default([])
+  createdById       String?
+  createdByName     String?
+  updatedById       String?
+  updatedByName     String?
   createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @default(now()) @updatedAt
   images            ProductImage[]
   comments          Comment[]
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  action     String
+  entityType String
+  entityId   String?
+  productId  String?
+  actorId    String?
+  actorName  String   @default("")
+  title      String   @default("")
+  details    Json?
+  ip         String?
+  userAgent  String?
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorId])
+  @@index([productId])
 }
 
 model User {
   id                     String    @id @default(uuid())
   username               String    @unique
   passwordHash           String
+  passwordEncrypted      String?
   passwordChangedAt      DateTime?
   passwordChangedById    String?
   passwordChangedByName  String?
@@ -57,16 +83,18 @@ model ProductImage {
 }
 
 model Comment {
-  id         String         @id @default(uuid())
-  title      String
-  text       String         @default("")
-  authorId   String?
-  authorName String         @default("")
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime?
-  productId  String
-  product    Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  images     CommentImage[]
+  id            String         @id @default(uuid())
+  title         String
+  text          String         @default("")
+  authorId      String?
+  authorName    String         @default("")
+  updatedById   String?
+  updatedByName String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime?
+  productId     String
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  images        CommentImage[]
 
   @@index([productId])
 }

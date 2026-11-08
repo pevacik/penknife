@@ -4,11 +4,13 @@ import type { ProductListParams } from '@/entities/product';
 import { useFilterStore } from '@/features/product-filters';
 import { useSearchStore } from '@/features/search-products';
 import { CartToggleButton } from '@/features/cart';
+import { saveHomeScroll, takeHomeScroll } from '@/shared/lib/scroll';
 import styles from './ProductList.module.css';
 
 export function ProductList() {
   const products = useProductStore((state) => state.products);
   const total = useProductStore((state) => state.total);
+  const page = useProductStore((state) => state.page);
   const loading = useProductStore((state) => state.loading);
   const loadingMore = useProductStore((state) => state.loadingMore);
   const error = useProductStore((state) => state.error);
@@ -23,8 +25,20 @@ export function ProductList() {
   const make50 = useFilterStore((state) => state.make50);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const pendingScroll = useRef<ReturnType<typeof takeHomeScroll>>(null);
+  const scrollStateReady = useRef(false);
+  const sawLoading = useRef(false);
 
   const params: ProductListParams = { query, country, circulation, maxBudget, make50 };
+
+  useEffect(() => {
+    if (scrollStateReady.current) {
+      return;
+    }
+
+    pendingScroll.current = takeHomeScroll();
+    scrollStateReady.current = true;
+  }, []);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -32,6 +46,40 @@ export function ProductList() {
     }, 300);
     return () => clearTimeout(timeout);
   }, [query, country, circulation, maxBudget, make50]);
+
+  useEffect(() => {
+    if (loading) {
+      sawLoading.current = true;
+      return;
+    }
+    if (!sawLoading.current) {
+      return;
+    }
+
+    const pending = pendingScroll.current;
+    if (!pending) {
+      return;
+    }
+
+    if (loadingMore) {
+      return;
+    }
+
+    if (error) {
+      pendingScroll.current = null;
+      return;
+    }
+
+    if (hasMore && page < pending.page) {
+      void loadMore();
+      return;
+    }
+
+    pendingScroll.current = null;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: pending.scrollY, left: 0, behavior: 'auto' });
+    });
+  }, [loading, loadingMore, page, hasMore, error, loadMore]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -76,6 +124,7 @@ export function ProductList() {
                 key={product.id}
                 product={product}
                 action={<CartToggleButton product={product} />}
+                onNavigate={() => saveHomeScroll({ scrollY: window.scrollY, page })}
               />
             ))}
           </div>

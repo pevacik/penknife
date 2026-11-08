@@ -22,6 +22,11 @@
   cursor: not-allowed;
 }
 
+.button.inactive {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .primary {
   color: #ffffff;
   background-color: var(--color-accent);

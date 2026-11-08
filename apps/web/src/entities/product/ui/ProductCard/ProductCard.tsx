@@ -7,13 +7,14 @@ import styles from './ProductCard.module.css';
 interface ProductCardProps {
   product: Product;
   action?: ReactNode;
+  onNavigate?: () => void;
 }
 
-export function ProductCard({ product, action }: ProductCardProps) {
+export function ProductCard({ product, action, onNavigate }: ProductCardProps) {
   const cover = product.images[0]?.url;
 
   return (
-    <Link to={`/products/${product.id}`} className={styles.card}>
+    <Link to={`/products/${product.id}`} className={styles.card} onClick={onNavigate}>
       <div className={styles.image}>
         {cover ? (
           <img

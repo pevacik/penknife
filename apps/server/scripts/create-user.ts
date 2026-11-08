@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createInterface } from 'node:readline/promises';
 import { hashPassword } from '../src/auth/password';
+import { encryptPassword } from '../src/auth/passwordVault';
 import { isOverridablePermission, isPermission } from '../src/auth/permissions';
 import { isRole, ROLES } from '../src/auth/roles';
 import type { Role } from '../src/auth/roles';
@@ -186,12 +187,14 @@ async function main() {
   }
 
   const passwordHash = await hashPassword(password);
+  const passwordEncrypted = encryptPassword(password);
   const passwordChangedAt = new Date();
   const user = existing
     ? await prisma.user.update({
         where: { id: existing.id },
         data: {
           passwordHash,
+          passwordEncrypted,
           role,
           grantedPermissions: granted,
           revokedPermissions: revoked,
@@ -204,6 +207,7 @@ async function main() {
         data: {
           username,
           passwordHash,
+          passwordEncrypted,
           role,
           grantedPermissions: granted,
           revokedPermissions: revoked,

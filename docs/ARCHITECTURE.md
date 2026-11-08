@@ -55,8 +55,8 @@ apps/
 ## 3. Фронтенд (`apps/web`) — FSD
 
 - `app/` — корень: `App.tsx`, глобальные стили (`styles/index.css`, CSS-переменные).
-- `pages/` — `home`, `product-detail`, `login`, `admin-users`.
-- `widgets/` — `header`, `product-list`.
+- `pages/` — `home`, `product-detail`, `login`, `admin-users`, `admin-audit`.
+- `widgets/` — `header` (в т.ч. выпадающее `AccountMenu` с аккаунтом, паролем, админ-разделами и выходом), `product-list`.
 - `features/` — бизнес-фичи:
   - `add-product` — кнопка «Добавить карточку».
   - `auth` — форма входа (данные сессии и права живут в `entities/session`).
@@ -65,12 +65,15 @@ apps/
   - `delete-product`, `edit-product` — удаление / форма редактирования.
   - `product-comments`, `product-images` — комментарии (с автором, временем и редактированием) и картинки на странице карточки.
   - `product-csv` — импорт/экспорт CSV.
+  - `change-password` — управляемая `ChangePasswordModal` и обёртка-кнопка для смены своего пароля.
+  - `audit-log` — журнал действий: фильтры, статистика, детали записей (`/admin/audit`).
   - `product-filters`, `search-products` — фильтры и поиск.
 - `entities/` — `product`: модель (`types`, `fields`), `store` (zustand), `api`, `ui/ProductCard`, `lib/normalize`; `session`: стор `useAuthStore`, API (`login/logout/me`), эффективные права (`useCan`), подписи ролей и прав (`ROLE_LABEL`, `PERMISSION_LABEL`), типы.
 - `shared/`:
   - `ui/` — `Button`, `Input`, `Select`, `Textarea`, `Modal`, `ImageLightbox`.
   - `api/` — `httpClient`, `uploadImage` (+ `importImageFromUrl`).
-  - `lib/` — `csv`, `download`, `clipboard`, `imageUrl`.
+  - `lib/` — `csv`, `download`, `clipboard`, `imageUrl`, `toast`.
+  - `ui/Toast` — хост всплывающих сообщений (в т.ч. «У вас нет прав для этого действия»).
   - `config/env.ts` — `API_URL` (по умолчанию `/api`, переопределяется `VITE_API_URL`).
 ## 4. Основные потоки данных
 
@@ -81,11 +84,13 @@ apps/
 
 **Вход**: `App` → `loadMe()` → `GET /api/auth/me`; без сессии показывается `LoginPage` → `POST /api/auth/login` ставит httpOnly-cookie. Любой ответ `401` в `httpClient` отправляет событие `auth:unauthorized`, и стор сбрасывает пользователя на форму входа.
 
-**Смена своего пароля**: `ChangePasswordButton` → `POST /api/auth/password` с текущим и новым паролем; сервер проверяет текущий, пишет `passwordChangedAt`/`passwordChangedById`/`passwordChangedByName` и завершает все сессии пользователя, кроме текущей. Админ меняет чужой пароль через `PATCH /api/users/:id` — тогда в аудите сохраняется его имя.
+**Смена своего пароля**: в шапке `Header` → `AccountMenu` (выпадающее меню) → «Сменить пароль» → `ChangePasswordModal` → `POST /api/auth/password` с новым паролем (старый не запрашивается); сервер ставит `passwordChangedAt`/`passwordChangedById`/`passwordChangedByName` и завершает все сессии пользователя, кроме текущей. Пароль для входа хранится как scrypt-хеш, а для показа в админке — дополнительно в зашифрованном виде (`PASSWORD_ENCRYPTION_KEY`). Админ меняет чужой пароль через `PATCH /api/users/:id`, а кнопка «Пароль» в админ-панели показывает сохранённый пароль через `GET /api/users/:id/password`.
 
-**Права в UI**: `useCan('createProduct' | …)` из `entities/session` читает эффективные права, которые вернул `GET /api/auth/me`; сервер независимо проверяет их через `requirePermission`. На `403` фронт перезапрашивает `/me` (событие `auth:forbidden`), поэтому выданные или отозванные права подхватываются без перелогина.
+**Права в UI**: `useCan('createProduct' | …)` из `entities/session` читает эффективные права, которые вернул `GET /api/auth/me`; сервер независимо проверяет их через `requirePermission`. Кнопки действий не скрываются: без права они показывают toast «У вас нет прав для этого действия» и не отправляют запрос. На `403` фронт перезапрашивает `/me` (событие `auth:forbidden`), поэтому выданные или отозванные права подхватываются без перелогина. Авторство карточки и ссылка «История карточки» показываются только при `viewAudit`; это структурное право, которое нельзя выдать персонально.
 
 **Админ-панель**: `AdminUsersPage` (`/admin/users`, доступ по `manageUsers`) → `features/manage-users` → `GET/POST/PATCH/DELETE /api/users`, `POST /api/users/:id/logout`. Персональные права хранятся как `grantedPermissions`/`revokedPermissions`, эффективный набор считает сервер.
+
+**Журнал действий**: `AdminAuditPage` (`/admin/audit`, доступ по `viewAudit`) → `features/audit-log` → `GET /api/audit` и `GET /api/audit/stats`. Записи `AuditLog` создаются в маршрутах через `src/audit/record.ts`; ошибка записи аудита логируется и не ломает основную операцию. В записи — `action` (`product.create`, `comment.update`, `auth.login` …), `entityType/entityId`, `productId`, `actorId/actorName`, snapshot названия, `details` (before/after), IP и User-Agent. Связей с `User`/`Product` нет, поэтому журнал переживает их удаление. Фильтры: группа действия (`action=product`), поиск по названию/логину, период, `productId` (ссылка «История карточки»). Статистика — по действиям, дням и пользователям.
 
 **Корзина**: `useCartStore` (zustand + persist в `localStorage`). Позиция хранит `{ id, title, imageUrl, comment }`. Комментарий генерируется автоматически (`Цена от … · Тираж от … · Срок: …`) и редактируется в корзине.
 
@@ -93,9 +98,9 @@ apps/
 
 **CSV**: `CsvMenu` — экспорт через `GET /api/products/all`, импорт через существующие API (создание/обновление). Битые ссылки на картинки пропускаются и не роняют импорт.
 
-**Комментарии**: `CommentSection` → `POST /api/products/:id/comments`; сервер записывает `authorId`/`authorName` из сессии и `createdAt`. Редактирование — `PATCH /api/products/:id/comments/:commentId`: автор или админ, при изменении ставится `updatedAt`. Удаление (`DELETE .../comments/:commentId`) — только право `deleteComments` (роль `admin`); удаление картинки комментария — автор или админ.
+**Комментарии**: `CommentSection` → `POST /api/products/:id/comments`; сервер записывает `authorId`/`authorName` из сессии и `createdAt`. Редактирование — `PATCH /api/products/:id/comments/:commentId`: любой пользователь с `manageComments` может редактировать любой комментарий (свой и чужой); при изменении ставятся `updatedAt`, `updatedById`/`updatedByName`. Удаление (`DELETE .../comments/:commentId`) — только право `deleteComments` (роль `admin`); удаление картинки комментария — только `deleteImages` (роль `admin`).
 
-**Картинки**: `ImageSection` → `uploadImage(file)` → `POST /api/uploads` (multipart) или `importImageFromUrl(url)` → `POST /api/uploads/from-url`. В обоих случаях сервер сохраняет файл как `/uploads/<uuid>.<ext>`, прогревает варианты и возвращает локальный URL, который уходит в `POST /api/products/:id/images`. Сервер сам скачивает внешние `http(s)`-URL (в том числе из CSV и комментариев), поэтому в БД попадают только локальные ссылки.
+**Картинки**: `ImageSection` → `uploadImage(file)` → `POST /api/uploads` (multipart) или `importImageFromUrl(url)` → `POST /api/uploads/from-url`. В обоих случаях сервер сохраняет файл как `/uploads/<uuid>.<ext>`, прогревает варианты и возвращает локальный URL, который уходит в `POST /api/products/:id/images`; удаление изображения карточки требует `deleteImages` (только `admin`). Сервер сам скачивает внешние `http(s)`-URL (в том числе из CSV и комментариев), поэтому в БД попадают только локальные ссылки.
 
 ## 5. Картинки: варианты, кэш, как добавить новый размер
 
@@ -167,18 +172,18 @@ npm run dev                   # фронт + сервер
 
 ## 10. Аутентификация, роли и безопасность
 
-- **Роли и права**: база по роли (`admin` — всё; `user` — создание/редактирование, картинки, комментарии, PDF, но без удаления карточек, CSV и удаления комментариев; `viewer` — чтение и PDF) плюс персональные `grantedPermissions`/`revokedPermissions`. Эффективные права = `(база ∪ granted) \ revoked`; `viewProducts`, `deleteComments` и `manageUsers` не переопределяются (просмотр у всех, удаление комментариев и управление пользователями — только у `admin`). Неизвестная роль трактуется как `viewer`.
-- **Модели**: `User` (`username`, `passwordHash`, `passwordChangedAt`, `passwordChangedById`, `passwordChangedByName`, `role` с дефолтом `viewer`, `grantedPermissions[]`, `revokedPermissions[]`) и `Session` (`tokenHash`, `expiresAt`, `lastUsedAt`).
-- **Пароли**: `crypto.scrypt` (N=16384, r=8, p=1, соль 16 байт, ключ 64 байта), формат `scrypt$N$r$p$salt$hash`, проверка через `timingSafeEqual`. Для несуществующего логина выполняется проверка по dummy-хэшу, чтобы время ответа не выдавало наличие пользователя.
+- **Роли и права**: база по роли (`admin` — всё; `user` — создание/редактирование карточек, добавление изображений, комментарии, PDF, но без удаления (карточек, изображений, комментариев) и CSV; `viewer` — только чтение) плюс персональные `grantedPermissions`/`revokedPermissions`. Эффективные права = `(база ∪ granted) \ revoked`; структурные права `viewProducts`, `deleteProduct`, `deleteImages`, `deleteComments`, `csv`, `manageUsers`, `viewAudit` не переопределяются (удаление, CSV, пользователи и журнал — только у `admin`); `viewAudit` принудительно удаляется у не-админа, поэтому авторство карточки и история недоступны даже при старых/некорректных данных в БД. Неизвестная роль трактуется как `viewer`.
+- **Модели**: `User` (`username`, `passwordHash`, `passwordEncrypted`, `passwordChangedAt`, `passwordChangedById`, `passwordChangedByName`, `role` с дефолтом `viewer`, `grantedPermissions[]`, `revokedPermissions[]`), `Session` (`tokenHash`, `expiresAt`, `lastUsedAt`), `AuditLog` (событие, актор, snapshot, `details Json`, IP/UA, индексы по дате/действию/актору/карточке), `Product` (`createdById/Name`, `updatedById/Name`, `updatedAt`), `Comment` (`updatedById/Name`).
+- **Пароли**: `crypto.scrypt` (N=16384, r=8, p=1, соль 16 байт, ключ 64 байта), формат `scrypt$N$r$p$salt$hash`, проверка через `timingSafeEqual`. Для несуществующего логина выполняется проверка по dummy-хэшу, чтобы время ответа не выдавало наличие пользователя. Для показа в админке дополнительно сохраняется AES-256-GCM-копия (`PASSWORD_ENCRYPTION_KEY`); при входе/создании/смене пароля копия обновляется, без ключа показ отключён.
 - **Сессия**: случайный токен в httpOnly-cookie `penknife_sid` (`SameSite=Lax`, `Secure` в проде, `Path=/`, TTL 7 дней из `SESSION_TTL_DAYS`). В БД хранится SHA-256 токена; `lastUsedAt` обновляется не чаще раза в час; истёкшие сессии чистятся при старте и раз в час.
 - **CLI**: `npm run user:create --workspace server -- <логин> [--role=admin|user|viewer] [--grant=...] [--revoke=...]`. Без `--role` первый пользователь в пустой БД становится `admin`, остальные — `user`. Есть `--list` (роль, доп. права, отозванные, сессии) и `--delete=<логин>`; последнего `admin` удалить нельзя; смена пароля или роли удаляет все сессии пользователя.
 - **Middleware** (порядок в `app.ts`): `securityHeaders` → `cors` (allowlist + `credentials`) → `express.json` → `requestId` (`X-Request-Id`) → `originCheck` → `/api/health` и `/api/auth` → `apiRateLimit` → `requireAuth` → роутеры с `requirePermission(...)` → `errorHandler`.
-- **Доступ**: публичны только `/api/health`, `/api/auth/*` и статика фронта; `/api/*`, `/media`, `/uploads` требуют сессию. Права на операции: `createProduct`, `editProduct`, `deleteProduct`, `manageImages`, `manageComments`, `deleteComments`, `csv`, `exportPdf`; `/api/users*` — только `manageUsers`. `deleteComments` структурное: есть только у `admin`, персонально не выдаётся.
-- **Админ-панель**: `/admin/users` (только `manageUsers`): создание/удаление пользователей, роль, персональные права, смена пароля, «разлогинить». В таблице отображается, когда и кем обновлён пароль (`passwordChangedAt` + `passwordChangedById/Name`: сам, admin или CLI), сами пароли не отдаются. Нельзя изменить/удалить себя и остаться без администратора; смена роли или пароля завершает сессии пользователя, изменение только прав — нет (применяется сразу).
-- **Фронтенд**: `useCan()` из `entities/session` читает эффективные права из `/api/auth/me` и скрывает недоступные действия; `viewer` получает read-only форму карточки. Это UX — сервер проверяет права сам. При `403` и возврате на вкладку стор перезапрашивает `/me` (не чаще раза в 30 секунд).
+- **Доступ**: публичны только `/api/health`, `/api/auth/*` и статика фронта; `/api/*`, `/media`, `/uploads` требуют сессию. Права на операции: `createProduct`, `editProduct`, `deleteProduct`, `manageImages`, `deleteImages`, `manageComments`, `deleteComments`, `csv`, `exportPdf`, `viewAudit`; `/api/users*` — только `manageUsers`, `/api/audit*` — только `viewAudit`. `deleteProduct`, `deleteImages`, `deleteComments`, `csv`, `manageUsers`, `viewAudit` структурные: есть только у `admin`, персонально не выдаются.
+- **Админ-панель**: `/admin/users` (только `manageUsers`): создание/удаление пользователей, роль, персональные права, показ пароля по кнопке «Пароль», «Смена пароля» и «Разлогинить». В таблице отображается, когда и кем обновлён пароль (`passwordChangedAt` + `passwordChangedById/Name`: сам, admin или CLI). Показ пароля доступен только `admin`, отдаётся с `Cache-Control: no-store` и фиксируется в `AuditLog` (`user.password_view`). Нельзя изменить/удалить себя и остаться без администратора; смена роли или пароля завершает сессии пользователя, изменение только прав — нет (применяется сразу).
+- **Фронтенд**: `useCan()` из `entities/session` читает эффективные права из `/api/auth/me`; кнопки действий остаются видимыми, но без права показывают toast и не отправляют запрос; `viewer` получает read-only форму карточки. Это UX — сервер проверяет права сам. При `403` и возврате на вкладку стор перезапрашивает `/me` (не чаще раза в 30 секунд).
 - **CSRF**: cookie `SameSite=Lax` + проверка `Origin` для не-GET запросов в production (в dev отключена, чтобы не ломать LAN-адреса за Vite-прокси).
-- **Лимиты**: вход — 5 неудач на IP+логин за 15 минут (`429` + `Retry-After`); смена пароля — 5 неудачных попыток на IP+пользователя за 15 минут; API — 300 запросов/мин на IP. Все лимитеры in-memory, рассчитаны на один процесс.
+- **Лимиты**: вход — 5 неудач на IP+логин за 15 минут (`429` + `Retry-After`); API — 300 запросов/мин на IP. Все лимитеры in-memory, рассчитаны на один процесс.
 - **Ошибки**: 4xx отдают понятное сообщение, 500 — нейтральное «Ошибка сервера»; стек и детали Prisma только в серверный лог вместе с `X-Request-Id`. `X-Powered-By` отключён.
 - **CSP** (`production`): `default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`.
-- **Ограничения**: нет аудита действий администратора; нет 2FA и сброса пароля по email; права не привязаны к объектам (владельца у карточки нет); `manageUsers` нельзя выдать отдельно — только ролью `admin`; при показе по обычному http в проде нужен `COOKIE_SECURE=false`; фронтенд-бандл после входа всё равно скачивается клиенту.
+- **Ограничения**: нет 2FA и сброса пароля по email; права не привязаны к объектам (владельца у карточки нет); `manageUsers` и `viewAudit` нельзя выдать отдельно — только ролью `admin`; при показе по обычному http в проде нужен `COOKIE_SECURE=false`; фронтенд-бандл после входа всё равно скачивается клиенту; журнал хранится в той же БД и не ротируется автоматически.
 

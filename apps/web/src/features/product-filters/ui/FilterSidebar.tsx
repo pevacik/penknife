@@ -1,5 +1,6 @@
 import { productionCountryOptions } from "@/entities/product";
 import type { CountryFilter, Make50Filter } from "@/entities/product";
+import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import { useFilterStore } from "../model/store";
@@ -14,10 +15,15 @@ export function FilterSidebar() {
   const setCirculation = useFilterStore((state) => state.setCirculation);
   const maxBudget = useFilterStore((state) => state.maxBudget);
   const setMaxBudget = useFilterStore((state) => state.setMaxBudget);
+  const reset = useFilterStore((state) => state.reset);
 
   return (
     <aside className={styles.sidebar}>
       <h2 className={styles.heading}>Фильтры</h2>
+
+      <Button variant="ghost" className={styles.reset} onClick={reset}>
+        Сброс фильтров
+      </Button>
 
       <label className={styles.field}>
         <span className={styles.label}>Тираж</span>

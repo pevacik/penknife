@@ -97,6 +97,11 @@
   border-color: #f87171;
 }
 
+.actionInactive {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .commentActions {
   display: flex;
   flex-shrink: 0;

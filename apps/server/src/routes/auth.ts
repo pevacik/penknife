@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import { clearSessionCookie, readSessionToken, setSessionCookie } from '../auth/cookies';
 import { hashPassword, verifyPassword } from '../auth/password';
+import { encryptPassword, rememberPassword } from '../auth/passwordVault';
 import {
   createSession,
   deleteOtherSessions,
@@ -11,7 +12,8 @@ import {
 } from '../auth/session';
 import { prisma } from '../db';
 import { requireAuth } from '../middleware/requireAuth';
-import { loginRateLimit, passwordChangeRateLimit } from '../middleware/rateLimit';
+import { loginRateLimit } from '../middleware/rateLimit';
+import { recordAudit } from '../audit/record';
 
 let dummyHashPromise: Promise<string> | null = null;
 
@@ -53,6 +55,13 @@ authRouter.post('/login', async (req, res, next) => {
 
     if (!user || !valid) {
       loginRateLimit.fail(key);
+      await recordAudit(req, {
+        action: 'auth.login_failed',
+        entityType: 'auth',
+        actorName: username,
+        title: username,
+        details: { reason: user ? 'invalid_password' : 'unknown_user' },
+      });
       res.status(401).json({ message: 'Неверный логин или пароль' });
       return;
     }
@@ -60,6 +69,24 @@ authRouter.post('/login', async (req, res, next) => {
     loginRateLimit.reset(key);
     const session = await createSession(user.id);
     setSessionCookie(res, session.token, session.expiresAt);
+
+    // Сохраняем обратимую копию пароля для админки (если настроен ключ).
+    await rememberPassword(
+      (encrypted) =>
+        prisma.user.update({
+          where: { id: user.id },
+          data: { passwordEncrypted: encrypted },
+        }),
+      password,
+    );
+
+    await recordAudit(req, {
+      action: 'auth.login',
+      entityType: 'auth',
+      actorId: user.id,
+      actorName: user.username,
+      title: user.username,
+    });
 
     res.json({ user: toAuthUser(user) });
   } catch (error) {
@@ -76,28 +103,19 @@ authRouter.post('/password', requireAuth, async (req, res, next) => {
     }
 
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const currentPassword =
-      typeof body.currentPassword === 'string' ? body.currentPassword : '';
-    const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
+    const newPassword =
+      typeof body.newPassword === 'string'
+        ? body.newPassword
+        : typeof body.password === 'string'
+          ? body.password
+          : '';
 
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({ message: 'Укажите текущий и новый пароль' });
+    if (!newPassword) {
+      res.status(400).json({ message: 'Укажите новый пароль' });
       return;
     }
     if (newPassword.length < 12 || newPassword.length > 200) {
       res.status(400).json({ message: 'Новый пароль должен быть от 12 до 200 символов' });
-      return;
-    }
-    if (newPassword === currentPassword) {
-      res.status(400).json({ message: 'Новый пароль должен отличаться от текущего' });
-      return;
-    }
-
-    const key = `${req.ip ?? 'unknown'}:${user.id}`;
-    const retryAfterMs = passwordChangeRateLimit.retryAfterMs(key);
-    if (retryAfterMs > 0) {
-      res.setHeader('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
-      res.status(429).json({ message: 'Слишком много попыток. Попробуйте позже.' });
       return;
     }
 
@@ -107,20 +125,14 @@ authRouter.post('/password', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const valid = await verifyPassword(currentPassword, record.passwordHash);
-    if (!valid) {
-      passwordChangeRateLimit.fail(key);
-      res.status(400).json({ message: 'Текущий пароль неверен' });
-      return;
-    }
-
-    passwordChangeRateLimit.reset(key);
     const passwordHash = await hashPassword(newPassword);
+    const passwordEncrypted = encryptPassword(newPassword);
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
         passwordHash,
+        passwordEncrypted,
         passwordChangedAt: new Date(),
         passwordChangedById: user.id,
         passwordChangedByName: user.username,
@@ -133,6 +145,14 @@ authRouter.post('/password', requireAuth, async (req, res, next) => {
       await deleteOtherSessions(user.id, token);
     }
 
+    await recordAudit(req, {
+      action: 'auth.password_change',
+      entityType: 'auth',
+      actorId: user.id,
+      actorName: user.username,
+      title: user.username,
+    });
+
     res.status(204).end();
   } catch (error) {
     next(error);
@@ -142,10 +162,22 @@ authRouter.post('/password', requireAuth, async (req, res, next) => {
 authRouter.post('/logout', async (req, res, next) => {
   try {
     const token = readSessionToken(req);
+    const user = token ? await findSessionUser(token) : null;
     if (token) {
       await deleteSession(token);
     }
     clearSessionCookie(res);
+
+    if (user) {
+      await recordAudit(req, {
+        action: 'auth.logout',
+        entityType: 'auth',
+        actorId: user.id,
+        actorName: user.username,
+        title: user.username,
+      });
+    }
+
     res.status(204).end();
   } catch (error) {
     next(error);

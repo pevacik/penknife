@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCan } from '@/entities/session';
 import { useProductStore } from '@/entities/product';
 import { Button } from '@/shared/ui/Button';
+import { showNoPermissionToast } from '@/shared/lib/toast';
 
 interface DeleteProductButtonProps {
   productId: string;
@@ -14,6 +15,10 @@ export function DeleteProductButton({ productId, onDeleted }: DeleteProductButto
   const [deleting, setDeleting] = useState(false);
 
   const handleClick = async () => {
+    if (!canDelete) {
+      showNoPermissionToast();
+      return;
+    }
     if (!window.confirm('Удалить карточку?')) {
       return;
     }
@@ -28,10 +33,8 @@ export function DeleteProductButton({ productId, onDeleted }: DeleteProductButto
   };
 
   return (
-    canDelete ? (
-      <Button variant="danger" onClick={handleClick} disabled={deleting}>
-        {deleting ? 'Удаление…' : 'Удалить карточку'}
-      </Button>
-    ) : null
+    <Button variant="danger" onClick={handleClick} disabled={deleting} inactive={!canDelete}>
+      {deleting ? 'Удаление…' : 'Удалить карточку'}
+    </Button>
   );
 }

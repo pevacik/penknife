@@ -15,24 +15,31 @@ export const ROLE_PERMISSIONS: Record<AuthRole, Permission[]> = {
     'editProduct',
     'deleteProduct',
     'manageImages',
+    'deleteImages',
     'manageComments',
     'deleteComments',
     'csv',
     'exportPdf',
     'manageUsers',
+    'viewAudit',
   ],
-  user: ['viewProducts', 'createProduct', 'editProduct', 'manageImages', 'manageComments', 'exportPdf'],
-  viewer: ['viewProducts', 'exportPdf'],
+  user: [
+    'viewProducts',
+    'createProduct',
+    'editProduct',
+    'manageImages',
+    'manageComments',
+    'exportPdf',
+  ],
+  viewer: ['viewProducts'],
 };
 
 /** Права, которые можно выдать/отозвать персонально. */
 export const OVERRIDABLE_PERMISSIONS: Permission[] = [
   'createProduct',
   'editProduct',
-  'deleteProduct',
   'manageImages',
   'manageComments',
-  'csv',
   'exportPdf',
 ];
 
@@ -41,18 +48,20 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   createProduct: 'Создание карточек',
   editProduct: 'Редактирование карточек',
   deleteProduct: 'Удаление карточек',
-  manageImages: 'Управление изображениями',
-  manageComments: 'Управление комментариями',
+  manageImages: 'Добавление изображений',
+  deleteImages: 'Удаление изображений',
+  manageComments: 'Добавление и редактирование комментариев',
   deleteComments: 'Удаление комментариев',
   csv: 'Импорт/экспорт CSV',
   exportPdf: 'Экспорт PDF',
   manageUsers: 'Управление пользователями',
+  viewAudit: 'Просмотр журнала',
 };
 
 export const PERMISSION_GROUPS: Array<{ title: string; permissions: Permission[] }> = [
-  { title: 'Карточки', permissions: ['createProduct', 'editProduct', 'deleteProduct'] },
+  { title: 'Карточки', permissions: ['createProduct', 'editProduct'] },
   { title: 'Изображения и комментарии', permissions: ['manageImages', 'manageComments'] },
-  { title: 'Данные', permissions: ['csv', 'exportPdf'] },
+  { title: 'Данные', permissions: ['exportPdf'] },
 ];
 
 /** Единая точка проверки прав в UI. Сервер всё равно проверяет право сам. */

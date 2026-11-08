@@ -72,6 +72,11 @@
   background-color: rgba(17, 24, 39, 0.85);
 }
 
+.inactive {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .add {
   width: 120px;
   height: 120px;

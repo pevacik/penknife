@@ -134,11 +134,18 @@ function serializeProduct(product: ProductWithRelations): Product {
       text: comment.text,
       authorId: comment.authorId,
       authorName: comment.authorName,
+      updatedById: comment.updatedById,
+      updatedByName: comment.updatedByName,
       images: comment.images.map((image) => ({ id: image.id, url: image.url })),
       createdAt: comment.createdAt.toISOString(),
       updatedAt: comment.updatedAt ? comment.updatedAt.toISOString() : null,
     })),
+    createdById: product.createdById,
+    createdByName: product.createdByName,
+    updatedById: product.updatedById,
+    updatedByName: product.updatedByName,
     createdAt: product.createdAt.toISOString(),
+    updatedAt: product.updatedAt.toISOString(),
   };
 }
 
@@ -193,7 +200,10 @@ export async function getProductById(id: string): Promise<Product | null> {
   return fetchProduct(id);
 }
 
-export async function createProduct(payload: Partial<ProductEditableFields> = {}): Promise<Product> {
+export async function createProduct(
+  payload: Partial<ProductEditableFields> = {},
+  actor?: { id: string; username: string },
+): Promise<Product> {
   const product = await prisma.product.create({
     ...productWithRelations,
     data: {
@@ -203,6 +213,8 @@ export async function createProduct(payload: Partial<ProductEditableFields> = {}
       make50: payload.make50 === true,
       productionCountry: payload.productionCountry === 'china' ? 'china' : 'russia',
       tags: sanitizeTags(payload.tags),
+      createdById: actor?.id ?? null,
+      createdByName: actor?.username ?? null,
     },
   });
   return serializeProduct(product);
@@ -211,6 +223,7 @@ export async function createProduct(payload: Partial<ProductEditableFields> = {}
 export async function updateProduct(
   id: string,
   patch: UpdateProductPayload,
+  actor?: { id: string; username: string },
 ): Promise<Product | null> {
   const data: Prisma.ProductUpdateInput = {};
 
@@ -231,6 +244,10 @@ export async function updateProduct(
   }
   if (patch.tags !== undefined) {
     data.tags = sanitizeTags(patch.tags);
+  }
+  if (actor) {
+    data.updatedById = actor.id;
+    data.updatedByName = actor.username;
   }
 
   if (Object.keys(data).length === 0) {
@@ -268,13 +285,13 @@ export async function addComment(
   id: string,
   payload: CreateCommentPayload,
   author: { id: string; username: string },
-): Promise<Product | null> {
+): Promise<{ product: Product; commentId: string } | null> {
   const existing = await fetchProduct(id);
   if (!existing) {
     return null;
   }
 
-  await prisma.comment.create({
+  const comment = await prisma.comment.create({
     data: {
       title: payload.title.trim(),
       text: sanitizeText(payload.text),
@@ -287,18 +304,26 @@ export async function addComment(
           .map((url) => ({ url: url.trim() })),
       },
     },
+    select: { id: true },
   });
 
-  return fetchProduct(id);
+  const product = await fetchProduct(id);
+  return product ? { product, commentId: comment.id } : null;
 }
 
 export async function getComment(
   id: string,
   commentId: string,
-): Promise<{ id: string; authorId: string | null } | null> {
+): Promise<{
+  id: string;
+  title: string;
+  text: string;
+  authorId: string | null;
+  authorName: string;
+} | null> {
   return prisma.comment.findFirst({
     where: { id: commentId, productId: id },
-    select: { id: true, authorId: true },
+    select: { id: true, title: true, text: true, authorId: true, authorName: true },
   });
 }
 
@@ -306,6 +331,7 @@ export async function updateComment(
   id: string,
   commentId: string,
   payload: UpdateCommentPayload,
+  actor?: { id: string; username: string },
 ): Promise<Product | null> {
   const existing = await fetchProduct(id);
   if (!existing) {
@@ -318,6 +344,8 @@ export async function updateComment(
       title: payload.title.trim(),
       text: sanitizeText(payload.text),
       updatedAt: new Date(),
+      updatedById: actor?.id ?? null,
+      updatedByName: actor?.username ?? null,
     },
   });
 

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { productionCountryOptions, useProductStore } from '@/entities/product';
 import type { Product, ProductionCountry } from '@/entities/product';
+import { useCan } from '@/entities/session';
+import { showNoPermissionToast } from '@/shared/lib/toast';
 import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { Select } from '@/shared/ui/Select';
@@ -21,8 +23,10 @@ interface ProductFormProps {
   readOnly?: boolean;
 }
 
-export function ProductForm({ product, readOnly = false }: ProductFormProps) {
+export function ProductForm({ product, readOnly: readOnlyProp = false }: ProductFormProps) {
   const updateProduct = useProductStore((state) => state.updateProduct);
+  const canEdit = useCan('editProduct');
+  const readOnly = readOnlyProp || !canEdit;
 
   const [values, setValues] = useState<FormValues>({
     title: product.title,
@@ -44,6 +48,7 @@ export function ProductForm({ product, readOnly = false }: ProductFormProps) {
     event.preventDefault();
 
     if (readOnly) {
+      showNoPermissionToast();
       return;
     }
 
@@ -143,18 +148,18 @@ export function ProductForm({ product, readOnly = false }: ProductFormProps) {
         />
       </label>
 
-      {readOnly ? (
+      {readOnly && (
         <p className={styles.readOnly}>
           Только просмотр: изменять карточки могут администратор и пользователи.
         </p>
-      ) : (
-        <div className={styles.actions}>
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Сохранение…' : 'Сохранить'}
-          </Button>
-          {saved && <span className={styles.saved}>Сохранено</span>}
-        </div>
       )}
+
+      <div className={styles.actions}>
+        <Button type="submit" disabled={saving} inactive={readOnly}>
+          {saving ? 'Сохранение…' : 'Сохранить'}
+        </Button>
+        {saved && <span className={styles.saved}>Сохранено</span>}
+      </div>
     </form>
   );
 }

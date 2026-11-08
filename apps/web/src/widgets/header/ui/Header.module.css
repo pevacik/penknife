@@ -21,57 +21,15 @@
   letter-spacing: -0.01em;
   white-space: nowrap;
   color: var(--color-text);
+  text-decoration: none;
+}
+
+.logo:hover {
+  color: var(--color-accent);
 }
 
 .search {
   flex: 1;
   max-width: 520px;
   margin: 0 auto;
-}
-
-.account {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.user {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-.role {
-  padding: 2px 8px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  background-color: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-}
-
-.navLink {
-  font-size: 14px;
-  color: var(--color-text);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.navLink:hover {
-  text-decoration: underline;
-}
-
-.logout {
-  padding: 6px 10px;
-  font-size: 13px;
-  color: var(--color-text);
-  background-color: var(--color-bg);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-}
-
-.logout:hover {
-  border-color: var(--color-accent);
 }
