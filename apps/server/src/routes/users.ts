@@ -29,8 +29,8 @@ interface UserRow {
 
 export const usersRouter = Router();
 
-// Управление пользователями — только у роли admin (структурное право).
-usersRouter.use(requirePermission('manageUsers'));
+// Доступ к разным операциям с пользователями различается:
+// manageUsers — управление существующими, addUsers — создание, viewPasswords — показ паролей.
 
 function serializeUser(user: UserRow, sessions = 0) {
   const authUser = toAuthUser(user);
@@ -137,7 +137,7 @@ function countAdmins(): Promise<number> {
   return prisma.user.count({ where: { role: 'admin' } });
 }
 
-usersRouter.get('/', async (_req, res, next) => {
+usersRouter.get('/', requirePermission('manageUsers'), async (_req, res, next) => {
   try {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'asc' },
@@ -161,7 +161,7 @@ usersRouter.get('/', async (_req, res, next) => {
   }
 });
 
-usersRouter.post('/', async (req, res, next) => {
+usersRouter.post('/', requirePermission('addUsers'), async (req, res, next) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const username = readUsername(body);
@@ -209,7 +209,7 @@ usersRouter.post('/', async (req, res, next) => {
   }
 });
 
-usersRouter.get('/:id/password', async (req, res, next) => {
+usersRouter.get('/:id/password', requirePermission('viewPasswords'), async (req, res, next) => {
   try {
     const target = await prisma.user.findUnique({ where: { id: req.params.id } });
 
@@ -243,7 +243,7 @@ usersRouter.get('/:id/password', async (req, res, next) => {
   }
 });
 
-usersRouter.patch('/:id', async (req, res, next) => {
+usersRouter.patch('/:id', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const target = await prisma.user.findUnique({ where: { id: req.params.id } });
 
@@ -317,7 +317,7 @@ usersRouter.patch('/:id', async (req, res, next) => {
   }
 });
 
-usersRouter.delete('/:id', async (req, res, next) => {
+usersRouter.delete('/:id', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const target = await prisma.user.findUnique({ where: { id: req.params.id } });
 
@@ -347,7 +347,7 @@ usersRouter.delete('/:id', async (req, res, next) => {
   }
 });
 
-usersRouter.post('/:id/logout', async (req, res, next) => {
+usersRouter.post('/:id/logout', requirePermission('manageUsers'), async (req, res, next) => {
   try {
     const target = await prisma.user.findUnique({ where: { id: req.params.id } });
 

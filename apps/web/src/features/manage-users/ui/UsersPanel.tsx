@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { PERMISSION_LABEL, ROLE_LABEL, useAuthStore } from '@/entities/session';
+import { PERMISSION_LABEL, ROLE_LABEL, useAuthStore, useCan } from '@/entities/session';
 import { Button } from '@/shared/ui/Button';
+import { showNoPermissionToast } from '@/shared/lib/toast';
 import type { ManagedUser } from '../api';
 import { useUsersStore } from '../model/store';
 import { PasswordModal } from './PasswordModal';
@@ -17,6 +18,8 @@ export function UsersPanel() {
   const removeUser = useUsersStore((state) => state.remove);
   const logoutSessions = useUsersStore((state) => state.logoutSessions);
   const currentUserId = useAuthStore((state) => state.user?.id);
+  const canAddUsers = useCan('addUsers');
+  const canViewPasswords = useCan('viewPasswords');
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
@@ -44,7 +47,18 @@ export function UsersPanel() {
           <h1 className={styles.heading}>Пользователи</h1>
           <p className={styles.subtitle}>Всего: {users.length}</p>
         </div>
-        <Button onClick={() => setCreating(true)}>Добавить пользователя</Button>
+        <Button
+          inactive={!canAddUsers}
+          onClick={() => {
+            if (!canAddUsers) {
+              showNoPermissionToast();
+              return;
+            }
+            setCreating(true);
+          }}
+        >
+          Добавить пользователя
+        </Button>
       </div>
 
       {error && <p className={styles.error}>{error}</p>}
@@ -97,8 +111,15 @@ export function UsersPanel() {
                         </button>
                         <button
                           type="button"
-                          className={styles.action}
-                          onClick={() => setPasswordViewFor(user)}
+                          className={`${styles.action} ${canViewPasswords ? '' : styles.inactive}`}
+                          aria-disabled={!canViewPasswords || undefined}
+                          onClick={() => {
+                            if (!canViewPasswords) {
+                              showNoPermissionToast();
+                              return;
+                            }
+                            setPasswordViewFor(user);
+                          }}
                         >
                           Пароль
                         </button>

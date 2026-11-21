@@ -147,6 +147,11 @@
   cursor: not-allowed;
 }
 
+.action.inactive {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .danger {
   color: #b91c1c;
   border-color: #fca5a5;

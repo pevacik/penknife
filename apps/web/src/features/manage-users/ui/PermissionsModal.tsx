@@ -135,14 +135,12 @@ export function PermissionsModal({ user, onClose }: PermissionsModalProps) {
             <input type="checkbox" checked readOnly disabled />
             <span>{PERMISSION_LABEL.viewProducts} — доступно всем вошедшим</span>
           </label>
-          {(['deleteProduct', 'deleteImages', 'deleteComments', 'csv', 'manageUsers', 'viewAudit'] as Permission[]).map(
-            (permission) => (
-              <label key={permission} className={styles.checkboxRow}>
-                <input type="checkbox" checked={role === 'admin'} readOnly disabled />
-                <span>{PERMISSION_LABEL[permission]} — только роль «Администратор»</span>
-              </label>
-            ),
-          )}
+          {(['addUsers', 'viewPasswords'] as Permission[]).map((permission) => (
+            <label key={permission} className={styles.checkboxRow}>
+              <input type="checkbox" checked={role === 'admin'} readOnly disabled />
+              <span>{PERMISSION_LABEL[permission]} — только роль «Администратор»</span>
+            </label>
+          ))}
         </div>
 
         {error && <p className={styles.error}>{error}</p>}

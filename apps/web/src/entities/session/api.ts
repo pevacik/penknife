@@ -14,7 +14,9 @@ export type Permission =
   | 'csv'
   | 'exportPdf'
   | 'manageUsers'
-  | 'viewAudit';
+  | 'addUsers'
+  | 'viewAudit'
+  | 'viewPasswords';
 
 export interface AuthUser {
   id: string;
