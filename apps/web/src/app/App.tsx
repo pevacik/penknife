@@ -17,6 +17,12 @@ export default function App() {
     void loadMe();
   }, [loadMe]);
 
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   if (status === 'checking') {
     return <div className={styles.loading}>Загрузка…</div>;
   }

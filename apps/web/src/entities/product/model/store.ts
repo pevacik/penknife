@@ -21,7 +21,8 @@ interface ProductState {
   error: string | null;
   productsById: Record<string, Product>;
   currentParams: ProductListParams;
-  loadProducts: (params?: ProductListParams) => Promise<void>;
+  loadedForUserId: string | null;
+  loadProducts: (params?: ProductListParams, userId?: string) => Promise<void>;
   loadMore: () => Promise<void>;
   getProduct: (id: string) => Promise<Product | null>;
   addProduct: (payload?: CreateProductPayload) => Promise<Product>;
@@ -53,13 +54,15 @@ export const useProductStore = create<ProductState>((set, get) => ({
   error: null,
   productsById: {},
   currentParams: {},
+  loadedForUserId: null,
 
-  loadProducts: async (params) => {
+  loadProducts: async (params, userId) => {
     const nextParams = params ?? {};
     set({
       loading: true,
       error: null,
       currentParams: nextParams,
+      loadedForUserId: userId ?? null,
       products: [],
       total: 0,
       page: 0,

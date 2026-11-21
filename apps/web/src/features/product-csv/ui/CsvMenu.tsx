@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { useCan } from '@/entities/session';
+import { useAuthStore, useCan } from '@/entities/session';
 import { useProductStore } from '@/entities/product';
 import type { CreateProductPayload } from '@/entities/product';
 import { productApi } from '@/entities/product/api/productApi';
@@ -14,6 +14,7 @@ import styles from './CsvMenu.module.css';
 export function CsvMenu() {
   const canExportCsv = useCan('csv');
   const canImportCsv = useCan('csvImport');
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const total = useProductStore((state) => state.total);
   const addProduct = useProductStore((state) => state.addProduct);
   const updateProduct = useProductStore((state) => state.updateProduct);
@@ -94,7 +95,7 @@ export function CsvMenu() {
         }
       }
 
-      await loadProducts();
+      await loadProducts(undefined, currentUserId);
 
       setMessage(
         `Импортировано: создано ${created}, обновлено ${updated}${

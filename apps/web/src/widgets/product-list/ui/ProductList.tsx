@@ -1,11 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { ProductCard, useProductStore } from '@/entities/product';
 import type { ProductListParams } from '@/entities/product';
+import { useAuthStore } from '@/entities/session';
 import { useFilterStore } from '@/features/product-filters';
 import { useSearchStore } from '@/features/search-products';
 import { CartToggleButton } from '@/features/cart';
 import { saveHomeScroll, takeHomeScroll } from '@/shared/lib/scroll';
 import styles from './ProductList.module.css';
+
+function paramsKey(params: ProductListParams): string {
+  return JSON.stringify({
+    query: params.query ?? '',
+    country: params.country ?? 'all',
+    circulation: params.circulation ?? '',
+    maxBudget: params.maxBudget ?? '',
+    make50: params.make50 ?? 'all',
+  });
+}
 
 export function ProductList() {
   const products = useProductStore((state) => state.products);
@@ -15,8 +26,11 @@ export function ProductList() {
   const loadingMore = useProductStore((state) => state.loadingMore);
   const error = useProductStore((state) => state.error);
   const hasMore = useProductStore((state) => state.hasMore);
+  const currentParams = useProductStore((state) => state.currentParams);
+  const loadedForUserId = useProductStore((state) => state.loadedForUserId);
   const loadProducts = useProductStore((state) => state.loadProducts);
   const loadMore = useProductStore((state) => state.loadMore);
+  const currentUserId = useAuthStore((state) => state.user?.id);
 
   const query = useSearchStore((state) => state.query);
   const country = useFilterStore((state) => state.country);
@@ -26,38 +40,33 @@ export function ProductList() {
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const pendingScroll = useRef<ReturnType<typeof takeHomeScroll>>(null);
-  const scrollStateReady = useRef(false);
-  const sawLoading = useRef(false);
+  const pendingReady = useRef(false);
 
   const params: ProductListParams = { query, country, circulation, maxBudget, make50 };
+  const requestKey = paramsKey(params);
+  const loadedKey = paramsKey(currentParams);
+  const userMismatch = products.length > 0 && loadedForUserId !== currentUserId;
+  const canReuse = products.length > 0 && !userMismatch && loadedKey === requestKey;
 
   useEffect(() => {
-    if (scrollStateReady.current) {
+    if (canReuse) {
       return;
     }
 
-    pendingScroll.current = takeHomeScroll();
-    scrollStateReady.current = true;
-  }, []);
-
-  useEffect(() => {
     const timeout = setTimeout(() => {
-      void loadProducts(params);
+      void loadProducts(params, currentUserId);
     }, 300);
     return () => clearTimeout(timeout);
-  }, [query, country, circulation, maxBudget, make50]);
+  }, [requestKey, currentUserId, canReuse, loadProducts]);
 
-  useEffect(() => {
-    if (loading) {
-      sawLoading.current = true;
-      return;
-    }
-    if (!sawLoading.current) {
-      return;
+  useLayoutEffect(() => {
+    if (!pendingReady.current) {
+      pendingScroll.current = takeHomeScroll();
+      pendingReady.current = true;
     }
 
     const pending = pendingScroll.current;
-    if (!pending) {
+    if (!pending || loading || userMismatch) {
       return;
     }
 
@@ -70,16 +79,26 @@ export function ProductList() {
       return;
     }
 
-    if (hasMore && page < pending.page) {
+    const card = pending.productId
+      ? document.querySelector<HTMLElement>(`[data-product-id="${pending.productId}"]`)
+      : null;
+
+    if (card) {
+      const cardTop = card.getBoundingClientRect().top + window.scrollY;
+      const target = Math.max(0, cardTop + (pending.offset ?? 0));
+      window.scrollTo({ top: target, left: 0, behavior: 'auto' });
+      pendingScroll.current = null;
+      return;
+    }
+
+    if (pending.productId && hasMore && page < pending.page) {
       void loadMore();
       return;
     }
 
     pendingScroll.current = null;
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: pending.scrollY, left: 0, behavior: 'auto' });
-    });
-  }, [loading, loadingMore, page, hasMore, error, loadMore]);
+    window.scrollTo({ top: pending.scrollY, left: 0, behavior: 'auto' });
+  }, [loading, loadingMore, products.length, page, hasMore, error, userMismatch, loadMore]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -104,11 +123,13 @@ export function ProductList() {
     query.trim() || circulation || maxBudget || country !== 'all' || make50 !== 'all',
   );
 
+  const showLoading = loading || userMismatch;
+
   return (
     <section className={styles.section}>
       <div className={styles.meta}>{total} карточек</div>
 
-      {loading ? (
+      {showLoading ? (
         <div className={styles.state}>Загрузка…</div>
       ) : error ? (
         <div className={styles.state}>Ошибка: {error}</div>
@@ -124,7 +145,16 @@ export function ProductList() {
                 key={product.id}
                 product={product}
                 action={<CartToggleButton product={product} />}
-                onNavigate={() => saveHomeScroll({ scrollY: window.scrollY, page })}
+                onNavigate={(element) => {
+                  const rect = element.getBoundingClientRect();
+                  const absoluteTop = rect.top + window.scrollY;
+                  saveHomeScroll({
+                    productId: product.id,
+                    scrollY: window.scrollY,
+                    page,
+                    offset: window.scrollY - absoluteTop,
+                  });
+                }}
               />
             ))}
           </div>

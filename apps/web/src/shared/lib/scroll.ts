@@ -1,8 +1,10 @@
 const HOME_SCROLL_KEY = 'penknife:home-scroll';
 
 export interface HomeScrollState {
+  productId?: string;
   scrollY: number;
   page: number;
+  offset?: number;
 }
 
 function getStorage(): Storage | null {
@@ -54,10 +56,18 @@ export function takeHomeScroll(): HomeScrollState | null {
     }
 
     return {
+      productId:
+        typeof parsed.productId === 'string' && parsed.productId.trim()
+          ? parsed.productId
+          : undefined,
       scrollY: Math.max(0, parsed.scrollY),
       page: typeof parsed.page === 'number' && Number.isFinite(parsed.page)
         ? Math.max(0, Math.floor(parsed.page))
         : 1,
+      offset:
+        typeof parsed.offset === 'number' && Number.isFinite(parsed.offset)
+          ? parsed.offset
+          : 0,
     };
   } catch {
     storage.removeItem(HOME_SCROLL_KEY);
