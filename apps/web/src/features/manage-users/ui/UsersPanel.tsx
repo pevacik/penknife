@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PERMISSION_LABEL, ROLE_LABEL, useAuthStore, useCan } from '@/entities/session';
 import { Button } from '@/shared/ui/Button';
-import { showNoPermissionToast } from '@/shared/lib/toast';
+import { showNoPermissionToast, showToast } from '@/shared/lib/toast';
 import type { ManagedUser } from '../api';
 import { useUsersStore } from '../model/store';
 import { PasswordModal } from './PasswordModal';
@@ -82,6 +82,7 @@ export function UsersPanel() {
             <tbody>
               {users.map((user) => {
                 const isSelf = user.id === currentUserId;
+                const isProtectedAdmin = user.role === 'admin';
                 const isLastAdmin = user.role === 'admin' && adminCount <= 1;
 
                 return (
@@ -104,16 +105,20 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={styles.action}
-                          disabled={isSelf}
+                          disabled={isSelf || isProtectedAdmin}
                           onClick={() => setEditing(user)}
                         >
                           Права
                         </button>
                         <button
                           type="button"
-                          className={`${styles.action} ${canViewPasswords ? '' : styles.inactive}`}
-                          aria-disabled={!canViewPasswords || undefined}
+                          className={`${styles.action} ${!canViewPasswords || isProtectedAdmin ? styles.inactive : ''}`}
+                          aria-disabled={!canViewPasswords || isProtectedAdmin || undefined}
                           onClick={() => {
+                            if (isProtectedAdmin) {
+                              showToast('Пароль администратора защищён');
+                              return;
+                            }
                             if (!canViewPasswords) {
                               showNoPermissionToast();
                               return;
@@ -126,7 +131,7 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={styles.action}
-                          disabled={isSelf}
+                          disabled={isSelf || isProtectedAdmin}
                           onClick={() => setPasswordFor(user)}
                         >
                           Смена пароля
@@ -134,7 +139,7 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={styles.action}
-                          disabled={isSelf || user.sessions === 0}
+                          disabled={isSelf || isProtectedAdmin || user.sessions === 0}
                           onClick={() => void logoutSessions(user.id)}
                         >
                           Разлогинить
@@ -142,7 +147,7 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={`${styles.action} ${styles.danger}`}
-                          disabled={isSelf || isLastAdmin}
+                          disabled={isSelf || isProtectedAdmin || isLastAdmin}
                           onClick={() => void handleDelete(user)}
                         >
                           Удалить
@@ -157,8 +162,8 @@ export function UsersPanel() {
         </div>
       )}
 
-      {creating && <UserFormModal onClose={() => setCreating(false)} />}
-      {editing && <PermissionsModal user={editing} onClose={() => setEditing(null)} />}
+      {creating && <UserFormModal adminExists={adminCount > 0} onClose={() => setCreating(false)} />}
+      {editing && <PermissionsModal user={editing} adminExists={adminCount > 0} onClose={() => setEditing(null)} />}
       {passwordViewFor && (
         <PasswordRevealModal user={passwordViewFor} onClose={() => setPasswordViewFor(null)} />
       )}

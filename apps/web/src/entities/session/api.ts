@@ -12,6 +12,7 @@ export type Permission =
   | 'manageComments'
   | 'deleteComments'
   | 'csv'
+  | 'csvImport'
   | 'exportPdf'
   | 'manageUsers'
   | 'addUsers'

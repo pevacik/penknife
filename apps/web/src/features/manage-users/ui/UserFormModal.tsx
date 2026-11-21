@@ -10,12 +10,13 @@ import { useUsersStore } from '../model/store';
 import styles from './ManageUsers.module.css';
 
 interface UserFormModalProps {
+  adminExists: boolean;
   onClose: () => void;
 }
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABEL) as Array<[AuthRole, string]>;
 
-export function UserFormModal({ onClose }: UserFormModalProps) {
+export function UserFormModal({ adminExists, onClose }: UserFormModalProps) {
   const createUser = useUsersStore((state) => state.create);
   const error = useUsersStore((state) => state.error);
   const clearError = useUsersStore((state) => state.clearError);
@@ -88,7 +89,7 @@ export function UserFormModal({ onClose }: UserFormModalProps) {
           <span className={styles.label}>Роль</span>
           <Select value={role} onChange={(event) => setRole(event.target.value as AuthRole)}>
             {ROLE_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
+              <option key={value} value={value} disabled={value === 'admin' && adminExists}>
                 {label}
               </option>
             ))}

@@ -164,6 +164,14 @@ async function main() {
         ? 'admin'
         : 'user');
 
+  const adminCount = await prisma.user.count({ where: { role: 'admin' } });
+  if (role === 'admin' && existing?.role !== 'admin' && adminCount > 0) {
+    throw new Error('Администратор может быть только один');
+  }
+  if (existing?.role === 'admin' && role !== 'admin' && adminCount <= 1) {
+    throw new Error('Нельзя понизить последнего администратора');
+  }
+
   const passwordFromArgs = getArg(args, 'password');
   const grantArg = parsePermissionList(getArg(args, 'grant'));
   const revokeArg = parsePermissionList(getArg(args, 'revoke'));

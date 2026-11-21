@@ -12,7 +12,8 @@ import { csvToProducts, productsToCsv } from '../model/converter';
 import styles from './CsvMenu.module.css';
 
 export function CsvMenu() {
-  const canUseCsv = useCan('csv');
+  const canExportCsv = useCan('csv');
+  const canImportCsv = useCan('csvImport');
   const total = useProductStore((state) => state.total);
   const addProduct = useProductStore((state) => state.addProduct);
   const updateProduct = useProductStore((state) => state.updateProduct);
@@ -26,12 +27,23 @@ export function CsvMenu() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = async () => {
+    if (!canExportCsv) {
+      showNoPermissionToast();
+      return;
+    }
+
     const all = await productApi.listAll();
     downloadTextFile('products.csv', productsToCsv(all));
     setOpen(false);
   };
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!canImportCsv) {
+      showNoPermissionToast();
+      event.target.value = '';
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -100,7 +112,7 @@ export function CsvMenu() {
   };
 
   const handleOpen = () => {
-    if (!canUseCsv) {
+    if (!canExportCsv && !canImportCsv) {
       showNoPermissionToast();
       return;
     }
@@ -109,7 +121,7 @@ export function CsvMenu() {
 
   return (
     <>
-      <Button onClick={handleOpen} inactive={!canUseCsv} className={styles.trigger}>
+      <Button onClick={handleOpen} inactive={!canExportCsv && !canImportCsv} className={styles.trigger}>
         CSV
       </Button>
 
@@ -124,10 +136,24 @@ export function CsvMenu() {
           }
         >
           <div className={styles.actions}>
-            <Button onClick={() => void handleExport()} disabled={total === 0}>
+            <Button
+              onClick={() => void handleExport()}
+              disabled={canExportCsv && total === 0}
+              inactive={!canExportCsv}
+            >
               Экспортировать CSV
             </Button>
-            <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <Button
+              onClick={() => {
+                if (!canImportCsv) {
+                  showNoPermissionToast();
+                  return;
+                }
+                fileInputRef.current?.click();
+              }}
+              disabled={importing}
+              inactive={!canImportCsv}
+            >
               {importing ? 'Импорт…' : 'Импортировать CSV'}
             </Button>
           </div>

@@ -10,6 +10,7 @@ export const PERMISSIONS = [
   'manageComments',
   'deleteComments',
   'csv',
+  'csvImport',
   'exportPdf',
   'manageUsers',
   'addUsers',

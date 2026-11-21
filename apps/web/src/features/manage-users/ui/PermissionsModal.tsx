@@ -16,12 +16,13 @@ import styles from './ManageUsers.module.css';
 
 interface PermissionsModalProps {
   user: ManagedUser;
+  adminExists: boolean;
   onClose: () => void;
 }
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABEL) as Array<[AuthRole, string]>;
 
-export function PermissionsModal({ user, onClose }: PermissionsModalProps) {
+export function PermissionsModal({ user, adminExists, onClose }: PermissionsModalProps) {
   const updateUser = useUsersStore((state) => state.update);
   const error = useUsersStore((state) => state.error);
   const clearError = useUsersStore((state) => state.clearError);
@@ -102,7 +103,11 @@ export function PermissionsModal({ user, onClose }: PermissionsModalProps) {
           <span className={styles.label}>Роль</span>
           <Select value={role} onChange={(event) => handleRoleChange(event.target.value as AuthRole)}>
             {ROLE_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
+              <option
+                key={value}
+                value={value}
+                disabled={value === 'admin' && adminExists && user.role !== 'admin'}
+              >
                 {label}
               </option>
             ))}

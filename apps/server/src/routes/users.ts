@@ -169,6 +169,11 @@ usersRouter.post('/', requirePermission('addUsers'), async (req, res, next) => {
     const role = readRole(body) ?? 'user';
     const granted = readPermissionList(body, 'grantedPermissions') ?? [];
     const revoked = readPermissionList(body, 'revokedPermissions') ?? [];
+
+    if (role === 'admin' && (await countAdmins()) > 0) {
+      throw httpError('Администратор может быть только один', 400);
+    }
+
     const passwordHash = await hashPassword(password);
     const passwordEncrypted = encryptPassword(password);
 
@@ -217,6 +222,10 @@ usersRouter.get('/:id/password', requirePermission('viewPasswords'), async (req,
       throw httpError('Пользователь не найден', 404);
     }
 
+    if (target.role === 'admin') {
+      throw httpError('Учётная запись администратора защищена', 403);
+    }
+
     res.setHeader('Cache-Control', 'no-store');
 
     const password = decryptPassword(target.passwordEncrypted);
@@ -253,6 +262,9 @@ usersRouter.patch('/:id', requirePermission('manageUsers'), async (req, res, nex
     if (target.id === req.user?.id) {
       throw httpError('Нельзя изменять собственную учётную запись', 400);
     }
+    if (target.role === 'admin') {
+      throw httpError('Учётная запись администратора защищена', 403);
+    }
 
     const body = (req.body ?? {}) as Record<string, unknown>;
     const currentRole: Role = isRole(target.role) ? target.role : 'viewer';
@@ -262,6 +274,9 @@ usersRouter.patch('/:id', requirePermission('manageUsers'), async (req, res, nex
     const revoked = readPermissionList(body, 'revokedPermissions');
     const roleChanged = role !== currentRole;
 
+    if (role === 'admin' && currentRole !== 'admin' && (await countAdmins()) > 0) {
+      throw httpError('Администратор может быть только один', 400);
+    }
     if (roleChanged && currentRole === 'admin' && (await countAdmins()) <= 1) {
       throw httpError('Нельзя изменить роль последнего администратора', 400);
     }
@@ -327,6 +342,9 @@ usersRouter.delete('/:id', requirePermission('manageUsers'), async (req, res, ne
     if (target.id === req.user?.id) {
       throw httpError('Нельзя удалить собственную учётную запись', 400);
     }
+    if (target.role === 'admin') {
+      throw httpError('Учётная запись администратора защищена', 403);
+    }
     if (target.role === 'admin' && (await countAdmins()) <= 1) {
       throw httpError('Нельзя удалить последнего администратора', 400);
     }
@@ -353,6 +371,9 @@ usersRouter.post('/:id/logout', requirePermission('manageUsers'), async (req, re
 
     if (!target) {
       throw httpError('Пользователь не найден', 404);
+    }
+    if (target.role === 'admin') {
+      throw httpError('Учётная запись администратора защищена', 403);
     }
 
     await deleteUserSessions(target.id);
