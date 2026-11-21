@@ -23,6 +23,7 @@ export interface AuthUser {
   id: string;
   username: string;
   role: AuthRole;
+  isOwner: boolean;
   permissions: Permission[];
 }
 

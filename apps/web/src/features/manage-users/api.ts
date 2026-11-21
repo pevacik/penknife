@@ -5,6 +5,7 @@ export interface ManagedUser {
   id: string;
   username: string;
   role: AuthRole;
+  isOwner: boolean;
   permissions: Permission[];
   grantedPermissions: Permission[];
   revokedPermissions: Permission[];

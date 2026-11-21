@@ -48,7 +48,7 @@ export function AccountMenu() {
     return null;
   }
 
-  const roleLabel = ROLE_LABEL[user.role];
+  const roleLabel = user.isOwner ? 'Главный администратор' : ROLE_LABEL[user.role];
 
   return (
     <div ref={rootRef} className={styles.root}>

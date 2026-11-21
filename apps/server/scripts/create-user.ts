@@ -120,6 +120,10 @@ async function deleteUser(username: string): Promise<void> {
     }
   }
 
+  if (user.isOwner) {
+    throw new Error('Нельзя удалить главного администратора');
+  }
+
   await prisma.user.delete({ where: { id: user.id } });
   console.log(`[user] удалён: ${username}`);
 }
@@ -164,13 +168,11 @@ async function main() {
         ? 'admin'
         : 'user');
 
-  const adminCount = await prisma.user.count({ where: { role: 'admin' } });
-  if (role === 'admin' && existing?.role !== 'admin' && adminCount > 0) {
-    throw new Error('Администратор может быть только один');
+  const ownerCount = await prisma.user.count({ where: { isOwner: true } });
+  if (existing?.isOwner && role !== 'admin') {
+    throw new Error('Нельзя понизить главного администратора');
   }
-  if (existing?.role === 'admin' && role !== 'admin' && adminCount <= 1) {
-    throw new Error('Нельзя понизить последнего администратора');
-  }
+  const isOwner = existing?.isOwner === true || (role === 'admin' && ownerCount === 0);
 
   const passwordFromArgs = getArg(args, 'password');
   const grantArg = parsePermissionList(getArg(args, 'grant'));
@@ -204,6 +206,7 @@ async function main() {
           passwordHash,
           passwordEncrypted,
           role,
+          isOwner,
           grantedPermissions: granted,
           revokedPermissions: revoked,
           passwordChangedAt,
@@ -217,6 +220,7 @@ async function main() {
           passwordHash,
           passwordEncrypted,
           role,
+          isOwner,
           grantedPermissions: granted,
           revokedPermissions: revoked,
           passwordChangedAt,

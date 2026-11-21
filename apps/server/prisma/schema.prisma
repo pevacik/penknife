@@ -50,6 +50,7 @@ model User {
   username               String    @unique
   passwordHash           String
   passwordEncrypted      String?
+  isOwner                Boolean   @default(false)
   passwordChangedAt      DateTime?
   passwordChangedById    String?
   passwordChangedByName  String?

@@ -30,8 +30,6 @@ export function UsersPanel() {
     void load();
   }, [load]);
 
-  const adminCount = users.filter((user) => user.role === 'admin').length;
-
   const handleDelete = async (user: ManagedUser) => {
     if (!window.confirm(`Удалить пользователя «${user.username}»?`)) {
       return;
@@ -82,13 +80,13 @@ export function UsersPanel() {
             <tbody>
               {users.map((user) => {
                 const isSelf = user.id === currentUserId;
-                const isProtectedAdmin = user.role === 'admin';
-                const isLastAdmin = user.role === 'admin' && adminCount <= 1;
+                const isProtectedOwner = user.isOwner;
 
                 return (
                   <tr key={user.id}>
                     <td>
                       <span className={styles.username}>{user.username}</span>
+                      {user.isOwner && <span className={styles.owner}>главный</span>}
                       {isSelf && <span className={styles.self}>это вы</span>}
                     </td>
                     <td>{ROLE_LABEL[user.role]}</td>
@@ -105,18 +103,18 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={styles.action}
-                          disabled={isSelf || isProtectedAdmin}
+                          disabled={isSelf || isProtectedOwner}
                           onClick={() => setEditing(user)}
                         >
                           Права
                         </button>
                         <button
                           type="button"
-                          className={`${styles.action} ${!canViewPasswords || isProtectedAdmin ? styles.inactive : ''}`}
-                          aria-disabled={!canViewPasswords || isProtectedAdmin || undefined}
+                          className={`${styles.action} ${!canViewPasswords || isProtectedOwner ? styles.inactive : ''}`}
+                          aria-disabled={!canViewPasswords || isProtectedOwner || undefined}
                           onClick={() => {
-                            if (isProtectedAdmin) {
-                              showToast('Пароль администратора защищён');
+                            if (isProtectedOwner) {
+                              showToast('Пароль главного администратора защищён');
                               return;
                             }
                             if (!canViewPasswords) {
@@ -131,7 +129,7 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={styles.action}
-                          disabled={isSelf || isProtectedAdmin}
+                          disabled={isSelf || isProtectedOwner}
                           onClick={() => setPasswordFor(user)}
                         >
                           Смена пароля
@@ -139,7 +137,7 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={styles.action}
-                          disabled={isSelf || isProtectedAdmin || user.sessions === 0}
+                          disabled={isSelf || isProtectedOwner || user.sessions === 0}
                           onClick={() => void logoutSessions(user.id)}
                         >
                           Разлогинить
@@ -147,7 +145,7 @@ export function UsersPanel() {
                         <button
                           type="button"
                           className={`${styles.action} ${styles.danger}`}
-                          disabled={isSelf || isProtectedAdmin || isLastAdmin}
+                          disabled={isSelf || isProtectedOwner}
                           onClick={() => void handleDelete(user)}
                         >
                           Удалить
@@ -162,8 +160,8 @@ export function UsersPanel() {
         </div>
       )}
 
-      {creating && <UserFormModal adminExists={adminCount > 0} onClose={() => setCreating(false)} />}
-      {editing && <PermissionsModal user={editing} adminExists={adminCount > 0} onClose={() => setEditing(null)} />}
+      {creating && <UserFormModal onClose={() => setCreating(false)} />}
+      {editing && <PermissionsModal user={editing} onClose={() => setEditing(null)} />}
       {passwordViewFor && (
         <PasswordRevealModal user={passwordViewFor} onClose={() => setPasswordViewFor(null)} />
       )}

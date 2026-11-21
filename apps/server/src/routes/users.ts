@@ -19,6 +19,7 @@ interface UserRow {
   id: string;
   username: string;
   role: string;
+  isOwner: boolean;
   grantedPermissions: string[];
   revokedPermissions: string[];
   passwordChangedAt: Date | null;
@@ -48,6 +49,7 @@ function serializeUser(user: UserRow, sessions = 0) {
     id: user.id,
     username: user.username,
     role: authUser.role,
+    isOwner: authUser.isOwner,
     permissions: authUser.permissions,
     grantedPermissions: user.grantedPermissions,
     revokedPermissions: user.revokedPermissions,
@@ -133,10 +135,6 @@ function readPermissionList(body: Record<string, unknown>, field: string): strin
   return [...new Set(value)];
 }
 
-function countAdmins(): Promise<number> {
-  return prisma.user.count({ where: { role: 'admin' } });
-}
-
 usersRouter.get('/', requirePermission('manageUsers'), async (_req, res, next) => {
   try {
     const users = await prisma.user.findMany({
@@ -145,6 +143,7 @@ usersRouter.get('/', requirePermission('manageUsers'), async (_req, res, next) =
         id: true,
         username: true,
         role: true,
+        isOwner: true,
         grantedPermissions: true,
         revokedPermissions: true,
         passwordChangedAt: true,
@@ -170,12 +169,10 @@ usersRouter.post('/', requirePermission('addUsers'), async (req, res, next) => {
     const granted = readPermissionList(body, 'grantedPermissions') ?? [];
     const revoked = readPermissionList(body, 'revokedPermissions') ?? [];
 
-    if (role === 'admin' && (await countAdmins()) > 0) {
-      throw httpError('Администратор может быть только один', 400);
-    }
-
     const passwordHash = await hashPassword(password);
     const passwordEncrypted = encryptPassword(password);
+    const isOwner =
+      role === 'admin' && (await prisma.user.count({ where: { isOwner: true } })) === 0;
 
     const user = await prisma.user.create({
       data: {
@@ -183,6 +180,7 @@ usersRouter.post('/', requirePermission('addUsers'), async (req, res, next) => {
         passwordHash,
         passwordEncrypted,
         role,
+        isOwner,
         passwordChangedAt: new Date(),
         passwordChangedById: req.user?.id ?? null,
         passwordChangedByName: req.user?.username ?? null,
@@ -222,8 +220,8 @@ usersRouter.get('/:id/password', requirePermission('viewPasswords'), async (req,
       throw httpError('Пользователь не найден', 404);
     }
 
-    if (target.role === 'admin') {
-      throw httpError('Учётная запись администратора защищена', 403);
+    if (target.isOwner && target.id !== req.user?.id) {
+      throw httpError('Пароль главного администратора защищён', 403);
     }
 
     res.setHeader('Cache-Control', 'no-store');
@@ -262,8 +260,8 @@ usersRouter.patch('/:id', requirePermission('manageUsers'), async (req, res, nex
     if (target.id === req.user?.id) {
       throw httpError('Нельзя изменять собственную учётную запись', 400);
     }
-    if (target.role === 'admin') {
-      throw httpError('Учётная запись администратора защищена', 403);
+    if (target.isOwner) {
+      throw httpError('Учётная запись главного администратора защищена', 403);
     }
 
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -273,13 +271,6 @@ usersRouter.patch('/:id', requirePermission('manageUsers'), async (req, res, nex
     const granted = readPermissionList(body, 'grantedPermissions');
     const revoked = readPermissionList(body, 'revokedPermissions');
     const roleChanged = role !== currentRole;
-
-    if (role === 'admin' && currentRole !== 'admin' && (await countAdmins()) > 0) {
-      throw httpError('Администратор может быть только один', 400);
-    }
-    if (roleChanged && currentRole === 'admin' && (await countAdmins()) <= 1) {
-      throw httpError('Нельзя изменить роль последнего администратора', 400);
-    }
 
     const nextRevoked = revoked ?? target.revokedPermissions;
     const nextGranted = (granted ?? target.grantedPermissions).filter(
@@ -342,11 +333,8 @@ usersRouter.delete('/:id', requirePermission('manageUsers'), async (req, res, ne
     if (target.id === req.user?.id) {
       throw httpError('Нельзя удалить собственную учётную запись', 400);
     }
-    if (target.role === 'admin') {
-      throw httpError('Учётная запись администратора защищена', 403);
-    }
-    if (target.role === 'admin' && (await countAdmins()) <= 1) {
-      throw httpError('Нельзя удалить последнего администратора', 400);
+    if (target.isOwner) {
+      throw httpError('Учётная запись главного администратора защищена', 403);
     }
 
     await prisma.user.delete({ where: { id: target.id } });
@@ -372,8 +360,8 @@ usersRouter.post('/:id/logout', requirePermission('manageUsers'), async (req, re
     if (!target) {
       throw httpError('Пользователь не найден', 404);
     }
-    if (target.role === 'admin') {
-      throw httpError('Учётная запись администратора защищена', 403);
+    if (target.isOwner) {
+      throw httpError('Учётная запись главного администратора защищена', 403);
     }
 
     await deleteUserSessions(target.id);

@@ -10,6 +10,7 @@ export interface AuthUser {
   id: string;
   username: string;
   role: Role;
+  isOwner: boolean;
   permissions: Permission[];
 }
 
@@ -17,6 +18,7 @@ export interface AuthUserRow {
   id: string;
   username: string;
   role: string;
+  isOwner?: boolean;
   grantedPermissions: string[];
   revokedPermissions: string[];
 }
@@ -30,6 +32,7 @@ export function toAuthUser(user: AuthUserRow): AuthUser {
     id: user.id,
     username: user.username,
     role,
+    isOwner: user.isOwner === true,
     permissions: getEffectivePermissions(role, user.grantedPermissions, user.revokedPermissions),
   };
 }
