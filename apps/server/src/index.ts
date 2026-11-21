@@ -1,5 +1,6 @@
 import os from 'node:os';
 import { cleanupExpiredSessions } from './auth/session';
+import { ensureOwner } from './auth/owner';
 import { createApp } from './app';
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -34,6 +35,10 @@ app.listen(PORT, HOST, () => {
 
 void cleanupExpiredSessions().catch((error) => {
   console.warn('[auth] не удалось очистить сессии:', error instanceof Error ? error.message : error);
+});
+
+void ensureOwner().catch((error) => {
+  console.warn('[owner] не удалось назначить главного администратора:', error);
 });
 
 const cleanupTimer = setInterval(() => {
